@@ -1,0 +1,15 @@
+NostaDiag License v1.0
+
+You are allowed to use, modify and share this software for personal,
+educational and repair purposes.
+
+Commercial use is allowed only with visible credit to the original project.
+
+You may not:
+- remove original credits
+- rebrand the software as your own work
+- redistribute modified versions without attribution
+
+If you build upon this project, give proper credit.
+
+Don't be a dick.

@@ -1,0 +1,31 @@
+{
+  "appearance": {
+    "theme": "Light",
+    "font": "Space Age",
+    "accent_color": "#0078d4",
+    "window_width": 1140,
+    "window_height": 960
+  },
+  "layout": {
+    "orientation": "horizontal",
+    "sash_ratio": 0.362,
+    "output_undockable": true,
+    "output_default_undocked": false
+  },
+  "tabs": {
+    "Advanced Patching": true,
+    "Quick Commands": true,
+    "Manual Commands": false,
+    "Undervolt": false,
+    "Fan Settings (FAT)": false
+  },
+  "features": {
+    "sandbox_visible": false,
+    "helper_visible": true,
+    "error_annotations": true
+  },
+  "sandbox": {
+    "enabled_by_default": false,
+    "description": "Sandbox Mode simulates a real PS3 Syscon without a physical UART connection.\nAll UART commands are intercepted and answered using sandbox_data.json,\nwhich contains a real 32 KB EEPROM dump from a Mullion CXR713 console.\n\nYou can edit sandbox_data.json manually to simulate different console states,\ncustom error logs, different firmware versions, temperature values, and more."
+  }
+}

@@ -1,0 +1,4651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NostaDiag — PS3 Syscon Workbench</title>
+<link rel="icon" href="../assets/logo.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+@font-face {
+  font-family: 'SpaceAge';
+  src: url('../assets/space_age.ttf') format('truetype');
+  font-display: swap;
+}
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+  /* Surfaces */
+  --bg-0:        #0a0b0d;
+  --bg-1:        #111316;
+  --bg-2:        #181a1e;
+  --bg-3:        #20232a;
+  --bg-4:        #2a2e36;
+
+  /* Text */
+  --t-1:         #e8eaed;
+  --t-2:         #b8bcc3;
+  --t-3:         #8a8f99;
+  --t-4:         #5b6068;
+  --t-5:         #3a3d44;
+
+  /* Borders */
+  --bd-1:        #25282e;
+  --bd-2:        #34383f;
+  --bd-3:        #4a4f57;
+
+  /* Accents */
+  --ax:          #2c8fff;
+  --ax-h:        #4ca0ff;
+  --ax-d:        #1d6ad9;
+
+  /* Semantic */
+  --ok:          #4ade80;
+  --ok-d:        #1a6938;
+  --warn:        #fbbf24;
+  --warn-d:      #78580a;
+  --err:         #f87171;
+  --err-d:       #7a1f1f;
+  --info:        #60a5fa;
+
+  /* PS palette (subtle accents) */
+  --ps-red:      #cc0000;
+  --ps-blue:     #003791;
+  --ps-green:    #009A44;
+  --ps-orange:   #FF6400;
+
+  /* Type */
+  --ui:          'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --mono:        'JetBrains Mono', 'Cascadia Code', 'Consolas', ui-monospace, monospace;
+
+  /* Shape */
+  --r-1:         3px;
+  --r-2:         5px;
+  --r-3:         8px;
+
+  /* Layout */
+  --topbar-h:    40px;
+  --sidebar-w:   220px;
+  --termbar-h:   34px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--ui);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--t-1);
+  background: var(--bg-0);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--ax); outline-offset: 1px; }
+
+::-webkit-scrollbar              { width: 10px; height: 10px; }
+::-webkit-scrollbar-track        { background: var(--bg-0); }
+::-webkit-scrollbar-thumb        { background: var(--bg-3); border: 2px solid var(--bg-0); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover  { background: var(--bg-4); }
+::-webkit-scrollbar-corner       { background: var(--bg-0); }
+
+/* ============================================================
+   LAYOUT GRID
+   ============================================================ */
+#app {
+  display: grid;
+  grid-template-rows: var(--topbar-h) 1fr;
+  height: 100vh;
+}
+
+#main {
+  display: flex;
+  min-height: 0;
+  background: var(--bg-1);
+}
+
+#sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--bg-1);
+  border-right: 1px solid var(--bd-1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#workspace {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+#term-pane {
+  width: 480px;
+  min-width: 320px;
+  max-width: 70vw;
+  flex-shrink: 0;
+  background: var(--bg-0);
+  border-left: 1px solid var(--bd-1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+#term-resize {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 10;
+}
+#term-resize:hover { background: rgba(44,143,255,.2); }
+
+/* ============================================================
+   TOP STATUS BAR
+   ============================================================ */
+#topbar {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--bd-1);
+  font-size: 11.5px;
+  user-select: none;
+}
+
+.tb-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-right: 1px solid var(--bd-1);
+  flex-shrink: 0;
+}
+.tb-brand .brand-logo-big {
+  height: 26px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.4));
+}
+.tb-brand .name {
+  font-weight: 700;
+  letter-spacing: .3px;
+  color: var(--t-1);
+  font-size: 12px;
+}
+.tb-brand .ver {
+  color: var(--t-4);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.tb-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border-right: 1px solid var(--bd-1);
+  flex-shrink: 0;
+}
+.tb-section.flex { flex: 1; min-width: 0; overflow: hidden; }
+
+.tb-label {
+  color: var(--t-4);
+  text-transform: uppercase;
+  font-size: 9.5px;
+  letter-spacing: .8px;
+  font-weight: 600;
+}
+
+.tb-sel {
+  background: var(--bg-2);
+  border: 1px solid var(--bd-1);
+  color: var(--t-1);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: var(--r-1);
+  outline: none;
+  min-width: 70px;
+}
+.tb-sel:hover  { border-color: var(--bd-2); }
+.tb-sel:focus  { border-color: var(--ax); }
+
+.tb-icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--t-3);
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-1);
+  font-size: 13px;
+  font-family: var(--mono);
+  font-weight: 700;
+}
+.tb-icon-btn:hover { background: var(--bg-2); color: var(--t-1); border-color: var(--bd-1); }
+
+.tb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 11px;
+  background: var(--bg-2);
+  border: 1px solid var(--bd-1);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--t-2);
+  white-space: nowrap;
+}
+.tb-pill .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--t-5);
+  flex-shrink: 0;
+}
+.tb-pill.ok   { color: var(--ok);   border-color: rgba(74,222,128,.25); background: rgba(74,222,128,.06); }
+.tb-pill.ok   .dot { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.tb-pill.warn { color: var(--warn); border-color: rgba(251,191,36,.25); background: rgba(251,191,36,.06); }
+.tb-pill.warn .dot { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+.tb-pill.err  { color: var(--err);  border-color: rgba(248,113,113,.25); background: rgba(248,113,113,.06); }
+.tb-pill.err  .dot { background: var(--err); box-shadow: 0 0 6px var(--err); }
+
+.tb-metric {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.tb-metric .l { color: var(--t-4); font-size: 9.5px; text-transform: uppercase; letter-spacing: .6px; font-weight: 600; }
+.tb-metric .v { color: var(--t-1); font-weight: 600; }
+.tb-metric .v.dim { color: var(--t-4); }
+.tb-metric .v.ok  { color: var(--ok); }
+.tb-metric .v.w   { color: var(--warn); }
+.tb-metric .v.e   { color: var(--err); }
+
+/* sandbox indicator stripe at top of window */
+body.sandbox::before {
+  content: 'SANDBOX MODE — no real hardware';
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 18px;
+  background: var(--warn);
+  color: #1a1a00;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+body.sandbox #app { padding-top: 18px; }
+
+/* ============================================================
+   SIDEBAR  (workflows)
+   ============================================================ */
+.sb-section {
+  padding: 14px 14px 4px 14px;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--t-5);
+  font-weight: 600;
+  user-select: none;
+}
+
+.sb-list { display: flex; flex-direction: column; }
+
+.sb-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  font-size: 12px;
+  color: var(--t-2);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  user-select: none;
+  position: relative;
+  transition: background .08s, color .08s;
+}
+.sb-item:hover { background: var(--bg-2); color: var(--t-1); }
+.sb-item.on {
+  background: var(--bg-2);
+  color: var(--t-1);
+  border-left-color: var(--ax);
+  font-weight: 500;
+}
+.sb-item .ic {
+  width: 14px; height: 14px;
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--t-4);
+}
+.sb-item.on .ic { color: var(--ax); }
+.sb-item .kbd {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--t-5);
+  padding: 1px 5px;
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-1);
+}
+.sb-item.on .kbd { color: var(--t-3); border-color: var(--bd-2); }
+
+.sb-spacer { flex: 1; }
+
+.sb-foot {
+  border-top: 1px solid var(--bd-1);
+  padding: 10px 14px;
+  font-size: 10px;
+  color: var(--t-4);
+  font-family: var(--mono);
+  line-height: 1.6;
+}
+.sb-foot a, .sb-foot .lk {
+  color: var(--ax);
+  text-decoration: none;
+  cursor: pointer;
+}
+.sb-foot a:hover, .sb-foot .lk:hover { text-decoration: underline; }
+
+/* ============================================================
+   WORKSPACE
+   ============================================================ */
+.ws-head {
+  height: 42px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--bd-1);
+}
+.ws-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--t-1);
+}
+.ws-subtitle {
+  font-size: 11px;
+  color: var(--t-4);
+}
+
+.ws-body {
+  flex: 1;
+  overflow: auto;
+  padding: 18px 22px 30px 22px;
+}
+
+.wf { display: none; flex-direction: column; gap: 14px; }
+.wf.on { display: flex; }
+
+/* ── Stepper ── */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  margin-bottom: 8px;
+  user-select: none;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 4px;
+  cursor: default;
+  position: relative;
+}
+.step .num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--bg-3);
+  color: var(--t-3);
+  border: 1px solid var(--bd-2);
+  flex-shrink: 0;
+}
+.step .lbl { font-size: 11.5px; color: var(--t-3); white-space: nowrap; }
+.step.active .num { background: var(--ax); border-color: var(--ax-h); color: #fff; box-shadow: 0 0 0 3px rgba(44,143,255,.2); }
+.step.active .lbl { color: var(--t-1); font-weight: 500; }
+.step.done .num { background: var(--ok-d); border-color: var(--ok); color: var(--ok); }
+.step.done .num::before { content: '✓'; }
+.step.done .num span { display: none; }
+.step.done .lbl { color: var(--t-2); }
+.step.error .num { background: var(--err-d); border-color: var(--err); color: var(--err); }
+.step:not(:last-child)::after {
+  content: '';
+  width: 18px; height: 1px;
+  background: var(--bd-2);
+  margin-right: 0;
+}
+.step.done:not(:last-child)::after { background: var(--ok); }
+
+/* ── Cards ── */
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-2);
+}
+.card-h {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--bd-1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  font-weight: 600;
+  color: var(--t-3);
+  background: var(--bg-2);
+}
+.card-h .ttl { flex: 1; }
+.card-h .badge {
+  font-size: 9px; font-weight: 700; letter-spacing: .8px;
+  padding: 2px 7px; border-radius: 9px;
+  background: var(--bg-3); color: var(--t-3); border: 1px solid var(--bd-2);
+}
+.card-h .badge.warn { color: var(--warn); border-color: rgba(251,191,36,.4); background: rgba(251,191,36,.08); }
+.card-h .badge.err  { color: var(--err);  border-color: rgba(248,113,113,.4); background: rgba(248,113,113,.08); }
+.card-h .badge.ok   { color: var(--ok);   border-color: rgba(74,222,128,.4);  background: rgba(74,222,128,.08); }
+.card-b { padding: 14px 16px; }
+
+/* ── Row helpers ── */
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.col { display: flex; flex-direction: column; gap: 10px; }
+.grow { flex: 1; min-width: 0; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border-radius: var(--r-1);
+  border: 1px solid var(--bd-2);
+  background: var(--bg-3);
+  color: var(--t-1);
+  white-space: nowrap;
+  transition: background .08s, border-color .08s, color .08s;
+}
+.btn:hover:not(:disabled)    { background: var(--bg-4); border-color: var(--bd-3); }
+.btn:active:not(:disabled)   { transform: translateY(1px); }
+.btn:disabled                { opacity: .4; cursor: not-allowed; }
+
+.btn-pri  { background: var(--ax); border-color: var(--ax); color: #fff; }
+.btn-pri:hover:not(:disabled) { background: var(--ax-h); border-color: var(--ax-h); }
+.btn-ok   { background: var(--ok-d); border-color: rgba(74,222,128,.4); color: var(--ok); }
+.btn-ok:hover:not(:disabled)  { background: rgba(74,222,128,.18); border-color: var(--ok); }
+.btn-warn { background: rgba(251,191,36,.1); border-color: rgba(251,191,36,.35); color: var(--warn); }
+.btn-warn:hover:not(:disabled){ background: rgba(251,191,36,.18); border-color: var(--warn); }
+.btn-dgr  { background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.35); color: var(--err); }
+.btn-dgr:hover:not(:disabled) { background: rgba(248,113,113,.18); border-color: var(--err); }
+
+.btn-sm { height: 24px; padding: 0 9px; font-size: 11px; }
+.btn-lg { height: 34px; padding: 0 18px; font-size: 12px; }
+.btn .kbd {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  padding: 1px 4px;
+  background: rgba(0,0,0,.25);
+  border-radius: var(--r-1);
+  margin-left: 4px;
+  opacity: .7;
+}
+
+/* ── Inputs ── */
+.input {
+  background: var(--bg-1);
+  border: 1px solid var(--bd-2);
+  color: var(--t-1);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: var(--r-1);
+  outline: none;
+  height: 28px;
+}
+.input:hover { border-color: var(--bd-3); }
+.input:focus { border-color: var(--ax); }
+.input::placeholder { color: var(--t-5); }
+
+.input-lg { height: 34px; font-size: 13px; padding: 0 12px; }
+
+/* ── Toggle ── */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.toggle input { display: none; }
+.toggle .tk {
+  width: 30px; height: 16px;
+  background: var(--bg-3);
+  border-radius: 8px;
+  position: relative;
+  transition: background .15s;
+  border: 1px solid var(--bd-2);
+}
+.toggle .tk::after {
+  content: '';
+  position: absolute;
+  width: 12px; height: 12px;
+  background: var(--t-3);
+  border-radius: 50%;
+  top: 1px; left: 1px;
+  transition: transform .15s, background .15s;
+}
+.toggle input:checked + .tk { background: var(--ax); border-color: var(--ax); }
+.toggle input:checked + .tk::after { transform: translateX(14px); background: #fff; }
+.toggle .tlbl { font-size: 11.5px; color: var(--t-2); }
+
+/* ── Alert ── */
+.alert {
+  padding: 9px 12px;
+  border-radius: var(--r-2);
+  font-size: 11.5px;
+  line-height: 1.55;
+  border: 1px solid;
+  display: flex;
+  gap: 9px;
+}
+.alert .ai {
+  font-family: var(--mono);
+  font-weight: 700;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+.alert .at { flex: 1; }
+.al-info { background: rgba(96,165,250,.06);  border-color: rgba(96,165,250,.25); color: #a8c8f7; }
+.al-info .ai { color: var(--info); }
+.al-warn { background: rgba(251,191,36,.06);  border-color: rgba(251,191,36,.25); color: #f0d68d; }
+.al-warn .ai { color: var(--warn); }
+.al-err  { background: rgba(248,113,113,.06); border-color: rgba(248,113,113,.25); color: #f5b3b3; }
+.al-err  .ai { color: var(--err); }
+.al-ok   { background: rgba(74,222,128,.06);  border-color: rgba(74,222,128,.25); color: #b5ebcb; }
+.al-ok   .ai { color: var(--ok); }
+
+/* ── Stat tiles ── */
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+}
+.tile {
+  background: var(--bg-2);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-2);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 64px;
+}
+.tile .tl {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--t-4);
+  font-weight: 600;
+}
+.tile .tv {
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--t-1);
+  word-break: break-all;
+}
+.tile .tv.dim { color: var(--t-4); }
+.tile .tv.ok  { color: var(--ok); }
+.tile .tv.w   { color: var(--warn); }
+.tile .tv.e   { color: var(--err); }
+.tile .ts {
+  font-size: 10px;
+  color: var(--t-4);
+  font-family: var(--mono);
+  margin-top: auto;
+}
+
+/* ── Hex inspector ── */
+.hex {
+  background: var(--bg-0);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-2);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  overflow: auto;
+  max-height: 440px;
+}
+.hex table { width: 100%; border-collapse: collapse; }
+.hex th, .hex td { padding: 3px 6px; text-align: left; }
+.hex thead th {
+  background: var(--bg-2);
+  color: var(--t-4);
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  position: sticky; top: 0;
+  border-bottom: 1px solid var(--bd-1);
+}
+.hex td.addr { color: var(--t-4); border-right: 1px solid var(--bd-1); padding-right: 10px; }
+.hex td.byte { color: var(--t-1); cursor: pointer; padding: 3px 4px; min-width: 22px; text-align: center; }
+.hex td.byte:hover { background: var(--bg-3); color: var(--ax-h); }
+.hex td.byte.zero { color: var(--t-5); }
+.hex td.byte.sel  { background: var(--ax); color: #fff; }
+.hex td.gap { width: 8px; }
+.hex td.ascii {
+  border-left: 1px solid var(--bd-1);
+  color: var(--t-3);
+  padding-left: 10px;
+  white-space: pre;
+}
+
+/* ── Fan curve editor ── */
+.fancurve {
+  background: var(--bg-0);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-2);
+  padding: 14px 18px 8px 18px;
+  position: relative;
+  user-select: none;
+}
+.fc-svg {
+  display: block;
+  width: 100%;
+  height: 320px;
+  cursor: crosshair;
+  overflow: visible;
+}
+.fc-grid-line {
+  stroke: var(--bd-1);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+.fc-grid-line.maj { stroke: var(--bd-2); }
+.fc-axis-label {
+  fill: var(--t-4);
+  font: 600 10px var(--mono);
+}
+.fc-area {
+  fill: url(#fc-gradient);
+  opacity: .35;
+}
+.fc-line {
+  fill: none;
+  stroke: var(--ax);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.fc-point {
+  fill: var(--bg-0);
+  stroke: var(--ax);
+  stroke-width: 2;
+  cursor: grab;
+  transition: r .12s, fill .12s, stroke .12s;
+}
+.fc-point:hover    { r: 7; fill: var(--ax); }
+.fc-point.dragging { r: 8; fill: var(--ax-h); stroke: var(--ax-h); cursor: grabbing; }
+.fc-point.hot      { stroke: var(--err); }
+.fc-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--bg-3);
+  border: 1px solid var(--bd-3);
+  border-radius: var(--r-1);
+  padding: 4px 8px;
+  font: 600 11px var(--mono);
+  color: var(--t-1);
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,.5);
+  transform: translate(-50%, -130%);
+  opacity: 0;
+  transition: opacity .12s;
+}
+.fc-tooltip.on { opacity: 1; }
+.fc-tooltip .ax-h { color: var(--ax-h); }
+.fc-zone-l { fill: var(--ok);   opacity: .04; }
+.fc-zone-m { fill: var(--warn); opacity: .04; }
+.fc-zone-h { fill: var(--err);  opacity: .04; }
+
+/* second curve = RSX (orange/amber to distinguish from blue CELL) */
+.fc-line.rsx     { stroke: var(--warn); }
+.fc-area.rsx     { fill: url(#fc-gradient-rsx); opacity: .25; }
+.fc-point.rsx    { stroke: var(--warn); }
+.fc-point.rsx:hover    { fill: var(--warn); }
+.fc-point.rsx.dragging { fill: var(--warn); stroke: var(--warn); }
+.fc-line.dim     { opacity: .35; }
+.fc-area.dim     { opacity: .08; }
+.fc-point.dim    { opacity: .4; pointer-events: none; }
+
+.fc-legend {
+  position: absolute;
+  top: 14px; right: 18px;
+  display: flex; gap: 14px;
+  font-family: var(--mono);
+  font-size: 10px;
+  user-select: none;
+}
+.fc-leg {
+  display: inline-flex; align-items: center; gap: 6px;
+  cursor: pointer;
+  color: var(--t-4);
+  padding: 2px 6px;
+  border-radius: var(--r-1);
+}
+.fc-leg::before {
+  content: ''; width: 12px; height: 2px; border-radius: 1px;
+}
+.fc-leg.cell::before { background: var(--ax); }
+.fc-leg.rsx::before  { background: var(--warn); }
+.fc-leg.on.cell { color: var(--ax-h);  background: rgba(44,143,255,.08); }
+.fc-leg.on.rsx  { color: var(--warn);  background: rgba(251,191,36,.08); }
+
+/* Tab switch CELL / RSX */
+.tab-row {
+  display: inline-flex;
+  border: 1px solid var(--bd-2);
+  border-radius: var(--r-1);
+  overflow: hidden;
+}
+.tab-row .tab {
+  padding: 5px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--bg-2);
+  color: var(--t-3);
+  border-right: 1px solid var(--bd-2);
+  user-select: none;
+  letter-spacing: .3px;
+}
+.tab-row .tab:last-child { border-right: none; }
+.tab-row .tab:hover { background: var(--bg-3); color: var(--t-1); }
+.tab-row .tab.on.cell { background: var(--ax);   color: #fff; }
+.tab-row .tab.on.rsx  { background: var(--warn); color: #1a1100; }
+
+/* Phase list — visualised editor for the 10 fan phases */
+.phase-list {
+  background: var(--bg-1);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-2);
+  overflow: hidden;
+}
+.phase-list .ph-head,
+.phase-list .ph-row {
+  display: grid;
+  grid-template-columns: 90px minmax(220px,1fr) minmax(220px,1.1fr);
+  gap: 16px;
+  align-items: center;
+}
+.phase-list .ph-head {
+  padding: 8px 16px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--bd-1);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  font-weight: 600;
+  color: var(--t-4);
+}
+.phase-list .ph-row {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--bd-1);
+  transition: background .1s;
+}
+.phase-list .ph-row:last-child { border-bottom: none; }
+.phase-list .ph-row:hover     { background: rgba(255,255,255,.02); }
+.phase-list .ph-row.highlight { background: rgba(44,143,255,.05); }
+.phase-list.rsx-active .ph-row.highlight { background: rgba(251,191,36,.05); }
+
+/* Phase pill */
+.ph-pill-wrap { display: flex; align-items: center; gap: 6px; }
+.ph-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-3);
+  border: 1px solid var(--bd-2);
+  border-radius: 11px;
+  padding: 2px 9px 2px 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ax-h);
+}
+.ph-pill .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ax);
+  box-shadow: 0 0 4px currentColor;
+  flex-shrink: 0;
+}
+.phase-list.rsx-active .ph-pill { color: var(--warn); }
+.phase-list.rsx-active .ph-pill .dot { background: var(--warn); }
+.ph-role {
+  font-size: 9px;
+  color: var(--t-5);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  font-weight: 600;
+}
+
+/* Range editor (TMin / TMax with inline range bar) */
+.ph-range, .ph-speed { display: flex; align-items: center; gap: 8px; }
+.ph-range input, .ph-speed input {
+  width: 54px;
+  padding: 4px 8px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  background: var(--bg-0);
+  border: 1px solid var(--bd-2);
+  color: var(--t-1);
+  border-radius: var(--r-1);
+  text-align: right;
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.ph-range input::-webkit-outer-spin-button,
+.ph-range input::-webkit-inner-spin-button,
+.ph-speed input::-webkit-outer-spin-button,
+.ph-speed input::-webkit-inner-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+.ph-range input:focus, .ph-speed input:focus { border-color: var(--ax); }
+.ph-range .arrow { color: var(--t-5); font-size: 11px; user-select: none; }
+.ph-rangebar, .ph-speedbar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-3);
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+  min-width: 60px;
+  border: 1px solid var(--bd-1);
+}
+.ph-rangebar .seg {
+  position: absolute;
+  top: 0; height: 100%;
+  background: linear-gradient(90deg, var(--ax), var(--ax-h));
+  border-radius: 2px;
+  transition: left .1s, width .1s;
+}
+.phase-list.rsx-active .ph-rangebar .seg {
+  background: linear-gradient(90deg, var(--warn), #fcd34d);
+}
+
+/* Speed bar (0-255 with green->amber->red gradient) */
+.ph-speedbar { height: 14px; }
+.ph-speedbar .fill {
+  position: absolute;
+  top: 0; left: 0; height: 100%;
+  background: linear-gradient(90deg, #4ade80 0%, #fbbf24 55%, #f87171 100%);
+  border-radius: 2px;
+  transition: width .15s ease;
+}
+.ph-speedbar .ticks {
+  position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(90deg, transparent 0, transparent calc(20% - 1px), rgba(0,0,0,.25) calc(20% - 1px), rgba(0,0,0,.25) 20%);
+  pointer-events: none;
+}
+.ph-pct {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--t-2);
+  width: 40px;
+  text-align: right;
+}
+
+.tshut-input {
+  width: 70px;
+  background: var(--bg-1);
+  border: 1px solid var(--bd-2);
+  color: var(--err);
+  padding: 4px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--r-1);
+  outline: none;
+  text-align: right;
+}
+.tshut-input:focus { border-color: var(--err); }
+
+.preset-row { display: flex; gap: 5px; flex-wrap: wrap; }
+.preset {
+  padding: 4px 11px;
+  font-size: 10.5px;
+  font-weight: 500;
+  border: 1px solid var(--bd-2);
+  background: var(--bg-3);
+  color: var(--t-2);
+  border-radius: var(--r-1);
+  cursor: pointer;
+}
+.preset:hover { background: var(--bg-4); color: var(--t-1); border-color: var(--bd-3); }
+.preset.on { background: rgba(44,143,255,.15); border-color: var(--ax); color: var(--ax-h); }
+
+/* ── Code ref ── */
+.code-ref {
+  background: var(--bg-0);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-2);
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.85;
+  color: var(--t-3);
+}
+.code-ref .k { color: var(--ax-h); font-weight: 600; }
+.code-ref .c { color: var(--t-5); font-style: italic; }
+.code-ref .h { color: var(--t-1); font-weight: 600; padding-top: 6px; display: inline-block; }
+
+/* ============================================================
+   TERMINAL PANE
+   ============================================================ */
+.term-head {
+  height: var(--termbar-h);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--bd-1);
+  background: var(--bg-1);
+}
+.term-head .ttl {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--t-2);
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  flex: 1;
+}
+.term-head .badge {
+  font-size: 9px; font-weight: 700; letter-spacing: .6px;
+  padding: 1px 7px; border-radius: 9px;
+  background: var(--bg-3); color: var(--t-4); border: 1px solid var(--bd-2);
+}
+.term-head .badge.live { background: rgba(74,222,128,.08); border-color: rgba(74,222,128,.3); color: var(--ok); }
+
+.term-out {
+  flex: 1;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.7;
+  padding: 8px 12px 4px 12px;
+  background: var(--bg-0);
+}
+.term-out .line {
+  display: grid;
+  grid-template-columns: 64px 12px 1fr;
+  gap: 6px;
+  padding: 1px 0;
+  word-break: break-all;
+}
+.term-out .ts { color: var(--t-5); user-select: none; }
+.term-out .pf { user-select: none; }
+.term-out .pf.in  { color: var(--ax-h); }
+.term-out .pf.out { color: var(--t-5); }
+.term-out .tx { white-space: pre-wrap; }
+.term-out .l-cmd  .tx { color: var(--t-1); }
+.term-out .l-cmd  .pf { color: var(--ax-h); }
+.term-out .l-ok   .tx { color: var(--ok); }
+.term-out .l-err  .tx { color: var(--err); font-weight: 500; }
+.term-out .l-warn .tx { color: var(--warn); }
+.term-out .l-dim  .tx { color: var(--t-4); }
+.term-out .l-ann  .tx { color: var(--info); font-style: italic; padding-left: 12px; }
+.term-out .l-err  { background: rgba(248,113,113,.04); border-left: 2px solid var(--err); margin-left: -12px; padding-left: 10px; }
+
+.term-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-1);
+  border-top: 1px solid var(--bd-1);
+  flex-shrink: 0;
+}
+.term-input .pmpt {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ax-h);
+  user-select: none;
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.term-input input {
+  flex: 1;
+  background: var(--bg-0);
+  border: 1px solid var(--bd-2);
+  color: var(--t-1);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  padding: 6px 9px;
+  border-radius: var(--r-1);
+  outline: none;
+  caret-color: var(--ax);
+}
+.term-input input:focus { border-color: var(--ax); }
+.term-input input::placeholder { color: var(--t-5); }
+
+.term-foot {
+  flex-shrink: 0;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg-1);
+  border-top: 1px solid var(--bd-1);
+  font-size: 10px;
+  color: var(--t-4);
+  font-family: var(--mono);
+}
+.term-foot .seg {
+  display: flex; align-items: center; gap: 5px;
+  padding: 0 10px;
+  height: 100%;
+  border-right: 1px solid var(--bd-1);
+}
+.term-foot .seg.flex { flex: 1; justify-content: flex-end; border-right: none; }
+.term-foot .seg .d {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--t-5);
+}
+.term-foot .seg.live .d { background: var(--ok); box-shadow: 0 0 4px var(--ok); }
+
+/* autocomplete */
+.term-ac {
+  position: absolute;
+  bottom: 56px;
+  left: 12px;
+  right: 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--bd-2);
+  border-radius: var(--r-2);
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 50;
+  box-shadow: 0 6px 18px rgba(0,0,0,.5);
+}
+.term-ac.hidden { display: none; }
+.term-ac .ac-item {
+  padding: 5px 12px;
+  display: flex; gap: 12px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.term-ac .ac-item:hover, .term-ac .ac-item.sel { background: var(--bg-3); }
+.term-ac .ac-cmd  { color: var(--ax-h); font-weight: 600; min-width: 90px; }
+.term-ac .ac-desc { color: var(--t-4); flex: 1; }
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+.modal-bg {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(2px);
+}
+.modal-bg.hidden { display: none; }
+.modal {
+  background: var(--bg-2);
+  border: 1px solid var(--bd-2);
+  border-radius: var(--r-3);
+  width: min(540px, 92vw);
+  max-height: 86vh;
+  overflow: auto;
+  box-shadow: 0 12px 40px rgba(0,0,0,.6);
+}
+.modal-h {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--bd-1);
+  display: flex; align-items: center; gap: 10px;
+}
+.modal-h .t { font-size: 13px; font-weight: 600; color: var(--t-1); flex: 1; }
+.modal-h .x {
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--bd-2); border-radius: var(--r-1);
+  color: var(--t-3); background: transparent;
+  font-family: var(--mono); font-weight: 700;
+}
+.modal-h .x:hover { color: var(--t-1); background: var(--bg-3); }
+.modal-b { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; font-size: 12px; line-height: 1.55; color: var(--t-2); }
+.modal-f { padding: 10px 18px; border-top: 1px solid var(--bd-1); display: flex; gap: 8px; justify-content: flex-end; }
+
+.cs-item {
+  background: var(--bg-1);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-2);
+  padding: 9px 12px;
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.cs-item .cs-a  { color: var(--t-3); }
+.cs-item .cs-v  { color: var(--ax-h); font-weight: 600; }
+.cs-item .cs-c  { color: var(--t-4); flex: 1; }
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+.toasts {
+  position: fixed;
+  top: 50px;
+  right: 18px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 300;
+  pointer-events: none;
+}
+.toast {
+  background: var(--bg-2);
+  border: 1px solid var(--bd-2);
+  border-left: 3px solid var(--ax);
+  border-radius: var(--r-2);
+  padding: 9px 14px;
+  font-size: 11.5px;
+  color: var(--t-1);
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  pointer-events: auto;
+  min-width: 240px; max-width: 360px;
+  animation: toastIn .25s ease-out;
+}
+.toast.ok   { border-left-color: var(--ok); }
+.toast.warn { border-left-color: var(--warn); }
+.toast.err  { border-left-color: var(--err); }
+@keyframes toastIn {
+  from { transform: translateX(20px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+/* ============================================================
+   BOOT SCREEN
+   ============================================================ */
+#boot-screen {
+  position: fixed; inset: 0;
+  background: #000;
+  z-index: 1000;
+  display: flex; flex-direction: column;
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+  overflow: hidden;
+  transition: opacity .6s ease;
+}
+#boot-screen.fade-out { opacity: 0; pointer-events: none; }
+#boot-screen.hidden   { display: none; }
+
+/* scanline overlay */
+#boot-screen::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(0,0,0,.13) 3px,
+    rgba(0,0,0,.13) 4px
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+#boot-top {
+  padding: 40px 52px 0;
+  flex: 1;
+  overflow: hidden;
+}
+#boot-logo {
+  font-size: 11px;
+  color: #00ff41;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  opacity: .6;
+}
+#boot-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #00ff41;
+  letter-spacing: .06em;
+  text-shadow: 0 0 20px rgba(0,255,65,.5), 0 0 40px rgba(0,255,65,.2);
+  margin-bottom: 4px;
+}
+#boot-sub {
+  font-size: 11px;
+  color: #00aa2b;
+  letter-spacing: .12em;
+  margin-bottom: 36px;
+}
+#boot-divider {
+  height: 1px;
+  background: linear-gradient(90deg, #00ff41, transparent);
+  margin-bottom: 24px;
+  opacity: .4;
+}
+#boot-log {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #00cc35;
+}
+.bl { display: block; white-space: pre; }
+.bl .bk { color: #555; }
+.bl .ok { color: #00ff41; }
+.bl .warn { color: #ffaa00; }
+.bl .err  { color: #ff4444; }
+.bl.cursor::after {
+  content: '█';
+  animation: bootBlink .8s step-end infinite;
+}
+@keyframes bootBlink {
+  0%,100% { opacity: 1; } 50% { opacity: 0; }
+}
+
+#boot-bottom {
+  padding: 24px 52px 36px;
+  border-top: 1px solid rgba(0,255,65,.15);
+}
+#boot-bar-label {
+  font-size: 10px;
+  color: #00aa2b;
+  letter-spacing: .1em;
+  margin-bottom: 8px;
+}
+#boot-bar-track {
+  height: 3px;
+  background: rgba(0,255,65,.15);
+  border-radius: 2px;
+  overflow: hidden;
+}
+#boot-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: #00ff41;
+  box-shadow: 0 0 8px #00ff41;
+  border-radius: 2px;
+  transition: width .4s ease;
+}
+#boot-status {
+  font-size: 10px;
+  color: #555;
+  margin-top: 10px;
+  letter-spacing: .08em;
+}
+
+/* ============================================================
+   WELCOME GUIDE
+   ============================================================ */
+#guide-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  animation: guideOverlayIn .3s ease-out;
+}
+#guide-overlay.hidden { display: none; }
+@keyframes guideOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+#guide-card {
+  background: var(--bg-1);
+  border: 1px solid var(--bd-2);
+  border-radius: 14px;
+  width: 520px;
+  max-width: 94vw;
+  box-shadow: 0 0 0 1px rgba(44,143,255,.15), 0 32px 80px rgba(0,0,0,.7),
+              0 0 60px rgba(44,143,255,.08);
+  animation: guideCardIn .35s cubic-bezier(.22,.68,0,1.2);
+  overflow: hidden;
+}
+@keyframes guideCardIn {
+  from { transform: translateY(30px) scale(.96); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);   opacity: 1; }
+}
+.guide-glow-border {
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--ax), var(--ax-h), var(--ax), transparent);
+  background-size: 200% 100%;
+  animation: guideGlowSlide 2s linear infinite;
+}
+@keyframes guideGlowSlide {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+#guide-body {
+  padding: 36px 36px 24px;
+  min-height: 260px;
+  position: relative;
+  overflow: hidden;
+}
+.guide-step {
+  display: none;
+  animation: guideStepIn .25s ease-out;
+}
+.guide-step.active { display: block; }
+@keyframes guideStepIn {
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.guide-icon {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--ax);
+  background: rgba(44,143,255,.1);
+  border: 1px solid rgba(44,143,255,.3);
+  border-radius: 20px;
+  padding: 3px 10px;
+  margin-bottom: 16px;
+}
+.guide-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--t-1);
+  margin-bottom: 10px;
+  letter-spacing: -.01em;
+}
+.guide-text {
+  font-size: 13px;
+  color: var(--t-2);
+  line-height: 1.65;
+}
+.guide-text code {
+  background: var(--bg-3);
+  border: 1px solid var(--bd-2);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ax-h);
+}
+.guide-chips {
+  display: flex; flex-wrap: wrap; gap: 7px;
+  margin-top: 14px;
+}
+.guide-chip {
+  background: var(--bg-3);
+  border: 1px solid var(--bd-2);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--t-2);
+}
+.guide-chip .ic { color: var(--ax-h); font-weight: 600; margin-right: 4px; }
+#guide-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 36px 28px;
+  border-top: 1px solid var(--bd-1);
+}
+.guide-dots {
+  display: flex; gap: 7px;
+}
+.guide-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--bg-4);
+  border: 1px solid var(--bd-2);
+  transition: background .2s, transform .2s, box-shadow .2s;
+}
+.guide-dot.active {
+  background: var(--ax);
+  transform: scale(1.25);
+  box-shadow: 0 0 8px var(--ax);
+}
+.guide-dot.done {
+  background: var(--bg-3);
+  border-color: var(--ax-d);
+}
+#guide-next {
+  position: relative;
+  background: var(--ax);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-2);
+  padding: 9px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 0 0 0 rgba(44,143,255,.6);
+  animation: guidePulse 2s ease-in-out infinite;
+  transition: background .15s, transform .1s;
+}
+#guide-next:hover { background: var(--ax-h); transform: scale(1.03); }
+#guide-next:active { transform: scale(.97); }
+@keyframes guidePulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(44,143,255,.5); }
+  50%      { box-shadow: 0 0 0 8px rgba(44,143,255,0); }
+}
+#guide-skip {
+  background: none;
+  border: none;
+  color: var(--t-4);
+  font-size: 11.5px;
+  cursor: pointer;
+  padding: 6px 4px;
+  transition: color .15s;
+}
+#guide-skip:hover { color: var(--t-2); }
+
+/* ============================================================
+   MISC
+   ============================================================ */
+kbd, .kbd {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  background: var(--bg-3);
+  border: 1px solid var(--bd-2);
+  border-radius: var(--r-1);
+  color: var(--t-2);
+}
+.spinner {
+  display: inline-block;
+  width: 11px; height: 11px;
+  border: 1.5px solid var(--bd-2);
+  border-top-color: var(--ax);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.muted { color: var(--t-4); }
+.hidden { display: none !important; }
+
+/* ── Workflow step body ── */
+.step-body {
+  display: flex; flex-direction: column; gap: 14px;
+}
+.step-body h3 {
+  font-size: 13px; font-weight: 600; color: var(--t-1);
+}
+.step-body .desc {
+  font-size: 12px; color: var(--t-3); line-height: 1.6;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 4px 14px;
+  font-size: 11.5px;
+  font-family: var(--mono);
+}
+.kv .k { color: var(--t-4); }
+.kv .v { color: var(--t-1); }
+.kv .v.ok { color: var(--ok); }
+.kv .v.e  { color: var(--err); }
+.kv .v.w  { color: var(--warn); }
+
+.shortcut-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px;
+  font-size: 11.5px;
+}
+.shortcut-grid > div { display: flex; justify-content: space-between; padding: 3px 0; }
+.shortcut-grid .l { color: var(--t-2); }
+.shortcut-grid .r { color: var(--t-4); }
+
+/* ── Settings: theme & swatches ── */
+.swatch-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatch {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--bd-2);
+  transition: transform .12s, border-color .12s;
+  box-shadow: inset 0 0 0 2px var(--bg-1);
+}
+.swatch:hover { transform: scale(1.08); border-color: var(--t-3); }
+.swatch.on { border-color: var(--t-1); transform: scale(1.1); }
+
+.font-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.font-opt {
+  padding: 8px 14px;
+  border: 1px solid var(--bd-2);
+  border-radius: var(--r-2);
+  cursor: pointer;
+  background: var(--bg-2);
+  min-width: 130px;
+}
+.font-opt:hover  { border-color: var(--bd-3); background: var(--bg-3); }
+.font-opt.on     { border-color: var(--ax); background: rgba(44,143,255,.06); }
+.font-opt .fname { font-size: 14px; font-weight: 600; color: var(--t-1); }
+.font-opt .fdesc { font-size: 10.5px; color: var(--t-4); margin-top: 2px; }
+
+.color-pick {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--bd-2);
+  border-radius: var(--r-2);
+  padding: 4px 10px;
+}
+.color-pick input[type=color] {
+  width: 28px; height: 24px;
+  border: none; padding: 0;
+  background: transparent; cursor: pointer;
+  border-radius: var(--r-1);
+}
+.color-pick code {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--t-2); text-transform: uppercase;
+}
+
+/* ──────────────────────────────────────────────────────────
+   LIGHT MODE  — silver / cool-grey palette, terminal stays dark
+   ────────────────────────────────────────────────────────── */
+body.theme-light {
+  --bg-0:   #eef0f4;
+  --bg-1:   #f7f8fa;
+  --bg-2:   #ffffff;
+  --bg-3:   #eef0f4;
+  --bg-4:   #e1e4ea;
+
+  --t-1:    #16191f;
+  --t-2:    #393e47;
+  --t-3:    #5e6470;
+  --t-4:    #8a909c;
+  --t-5:    #b3b8c2;
+
+  --bd-1:   #e2e5eb;
+  --bd-2:   #c9cdd5;
+  --bd-3:   #a4a9b3;
+}
+body.theme-light {
+  background: var(--bg-0);
+  color: var(--t-1);
+}
+/* Card shadows + borders are more visible in light mode */
+body.theme-light .card {
+  box-shadow: 0 1px 2px rgba(15, 20, 30, 0.04);
+}
+body.theme-light .card-h {
+  background: linear-gradient(180deg, #fafbfc 0%, #f3f5f8 100%);
+}
+body.theme-light .panel,
+body.theme-light .stat,
+body.theme-light .tile {
+  box-shadow: 0 1px 2px rgba(15, 20, 30, 0.03);
+}
+
+/* Inputs in light mode use a near-white background, not bg-0 */
+body.theme-light .input,
+body.theme-light .ph-range input,
+body.theme-light .ph-speed input,
+body.theme-light .phase-tbl input,
+body.theme-light .t-in {
+  background: #ffffff;
+  color: var(--t-1);
+}
+
+/* Hex view & code refs — keep slightly contrasted bg in light mode */
+body.theme-light .hex,
+body.theme-light .code-ref,
+body.theme-light .code-b,
+body.theme-light .fancurve,
+body.theme-light .err-list,
+body.theme-light .conn-list {
+  background: #fbfcfd;
+}
+body.theme-light .code-ref { color: #4a4f57; }
+body.theme-light .code-ref .c { color: #99a; }
+body.theme-light .hex td.byte.zero { color: #c0c4cd; }
+
+/* Stat tiles — slightly tinted in light */
+body.theme-light .tile {
+  background: #fbfcfd;
+  border-color: #e1e4ea;
+}
+
+/* Toggle switches need slightly different shading */
+body.theme-light .toggle .tk { background: #d8dbe2; border-color: #b8bdc7; }
+body.theme-light .toggle .tk::after { background: #ffffff; border: 1px solid #b8bdc7; }
+
+/* TERMINAL stays dark in light mode (intentional — pro-tool convention) */
+body.theme-light #term-pane          { background: #0a0b0d; }
+body.theme-light .term-head          { background: #15171a; border-bottom-color: #25282e; color: #b8bcc3; }
+body.theme-light .term-head .badge   { background: #20232a; color: #8a8f99; border-color: #2a2d33; }
+body.theme-light .term-head .btn     { background: #20232a; border-color: #34383f; color: #b8bcc3; }
+body.theme-light .term-head .btn:hover:not(:disabled) { background: #2a2e36; }
+body.theme-light .term-out           { background: #0a0b0d; }
+body.theme-light .term-out .ts       { color: #5b6068; }
+body.theme-light .term-out .pf.out   { color: #5b6068; }
+body.theme-light .term-out .l-dim .tx{ color: #5b6068; }
+body.theme-light .term-input         { background: #15171a; border-top-color: #25282e; }
+body.theme-light .term-input input   { background: #0a0b0d; border-color: #34383f; color: #e8eaed; }
+body.theme-light .term-foot          { background: #15171a; border-top-color: #25282e; color: #5b6068; }
+body.theme-light .term-foot .seg     { border-right-color: #25282e; }
+body.theme-light .term-ac            { background: #20232a; border-color: #34383f; color: #e8eaed; }
+body.theme-light .term-ac .ac-item:hover, body.theme-light .term-ac .ac-item.sel { background: #2a2e36; }
+body.theme-light .term-ac .ac-desc   { color: #8a8f99; }
+
+/* Sandbox stripe stays yellow either way (it's a warning) */
+
+/* Connection guide image area stays black for image viewing */
+
+/* Phase list rows in light mode */
+body.theme-light .phase-list .ph-row:hover { background: rgba(15,20,30,.03); }
+
+/* Sidebar items hover in light mode */
+body.theme-light .sb-item:hover { background: var(--bg-3); }
+body.theme-light .sb-item.on    { background: var(--bg-3); }
+
+/* Modal backdrop — slightly lighter */
+body.theme-light .modal-bg { background: rgba(15,20,30,.45); }
+
+/* When SpaceAge font is on, headings get the retro feel */
+body.font-spaceage {
+  --ui: 'SpaceAge', 'Inter', -apple-system, sans-serif;
+}
+body.font-spaceage .ws-title,
+body.font-spaceage .card-h .ttl,
+body.font-spaceage .sb-section,
+body.font-spaceage .step .lbl,
+body.font-spaceage .ph-pill {
+  font-family: 'SpaceAge', 'Inter', sans-serif;
+  letter-spacing: 1px;
+}
+
+/* Density modifier */
+body.dense  { font-size: 11.5px; }
+body.dense  .ws-body { padding: 12px 16px; }
+body.dense  .card-b  { padding: 10px 12px; }
+body.cozy   { font-size: 13px; }
+body.cozy   .ws-body { padding: 22px 28px; }
+body.cozy   .card-b  { padding: 16px 20px; }
+
+/* ── Connection guide ── */
+.conn-grid {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 14px;
+  height: 100%;
+  min-height: 400px;
+}
+.conn-list {
+  background: var(--bg-2);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-2);
+  overflow: auto;
+  max-height: 70vh;
+}
+.conn-item {
+  padding: 9px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--bd-1);
+  font-size: 12px;
+  color: var(--t-2);
+  transition: background .1s;
+}
+.conn-item:hover { background: var(--bg-3); color: var(--t-1); }
+.conn-item.on    { background: rgba(44,143,255,.08); color: var(--ax-h); border-left: 2px solid var(--ax); padding-left: 10px; }
+.conn-item .l { font-weight: 600; }
+.conn-item .s { font-size: 10px; color: var(--t-4); margin-top: 2px; font-family: var(--mono); }
+
+.conn-img-wrap {
+  background: var(--bg-2);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.conn-img-head {
+  padding: 8px 14px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--bd-1);
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px;
+}
+.conn-img-area {
+  flex: 1;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  overflow: auto;
+  position: relative;
+}
+.conn-img-area img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  cursor: zoom-in;
+  border-radius: var(--r-1);
+}
+.conn-img-area img.zoomed {
+  max-width: none;
+  max-height: none;
+  cursor: zoom-out;
+}
+.conn-empty { color: var(--t-4); font-size: 12px; padding: 30px; text-align: center; }
+
+/* ── Error codes wiki ── */
+.err-search {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 10px;
+}
+.err-list {
+  background: var(--bg-2);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-2);
+  overflow: hidden;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+.err-row {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 14px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--bd-1);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .1s;
+}
+.err-row:last-child { border-bottom: none; }
+.err-row:hover { background: var(--bg-3); }
+.err-row .code {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ax-h);
+  letter-spacing: .5px;
+}
+.err-row .lbl  { color: var(--t-1); font-weight: 600; }
+.err-row .desc { color: var(--t-3); font-size: 11.5px; line-height: 1.5; margin-top: 2px; }
+.err-row.crit .code  { color: var(--err); }
+.err-row.crit .lbl   { color: var(--err); }
+.err-row.warn-row .code { color: var(--warn); }
+
+.wiki-box {
+  background: var(--bg-2);
+  border: 1px solid var(--bd-1);
+  border-radius: var(--r-2);
+  overflow: hidden;
+  height: 60vh;
+  display: flex;
+  flex-direction: column;
+}
+.wiki-box .wh {
+  padding: 8px 14px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--bd-1);
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px;
+}
+.wiki-box iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #fff;
+}
+
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════
+     APP CONTAINER
+     ════════════════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- ── TOP BAR ── -->
+  <header id="topbar">
+    <div class="tb-brand">
+      <img src="../assets/logo_big.png" alt="NostaDiag" class="brand-logo-big">
+      <div class="ver">v2.0</div>
+    </div>
+
+    <div class="tb-section">
+      <span class="tb-label">Port</span>
+      <select id="port-sel" class="tb-sel" title="Serial port (F5 to refresh)"></select>
+      <button class="tb-icon-btn" onclick="refreshPorts()" title="Refresh ports (F5)">↻</button>
+    </div>
+
+    <div class="tb-section">
+      <span class="tb-label">SC</span>
+      <select id="sc-type" class="tb-sel" onchange="onSCChange()" title="Syscon type">
+        <option>CXR</option><option>CXRF</option><option>SW</option>
+      </select>
+      <span id="baud" class="tb-metric"><span class="v dim">57600</span></span>
+    </div>
+
+    <div class="tb-section">
+      <span id="auth-pill" class="tb-pill"><span class="dot"></span><span>No Auth</span></span>
+      <span id="conn-pill" class="tb-pill"><span class="dot"></span><span>Idle</span></span>
+    </div>
+
+    <div class="tb-section flex" id="metrics">
+      <span class="tb-metric"><span class="l">Cell</span><span class="v dim" id="m-cell">—</span></span>
+      <span class="tb-metric"><span class="l">RSX</span><span class="v dim" id="m-rsx">—</span></span>
+      <span class="tb-metric"><span class="l">Boots</span><span class="v dim" id="m-boots">—</span></span>
+      <span class="tb-metric"><span class="l">Errs</span><span class="v dim" id="m-errs">—</span></span>
+    </div>
+
+    <div class="tb-section">
+      <label class="toggle" title="Toggle light / silver mode">
+        <input type="checkbox" id="theme-sw" onchange="toggleTheme()">
+        <span class="tk"></span>
+        <span class="tlbl">Light</span>
+      </label>
+      <label class="toggle" title="Sandbox mode (no real hardware)">
+        <input type="checkbox" id="sb-sw" onchange="onSandboxToggle()">
+        <span class="tk"></span>
+        <span class="tlbl">Sandbox</span>
+      </label>
+    </div>
+  </header>
+
+  <!-- ── MAIN ── -->
+  <div id="main">
+
+    <!-- ── SIDEBAR ── -->
+    <aside id="sidebar">
+      <div class="sb-section">Workflows</div>
+      <nav class="sb-list" id="wf-nav">
+        <div class="sb-item on" data-wf="connect"><span class="ic">C</span>Connect &amp; Auth<span class="kbd">F1</span></div>
+        <div class="sb-item"    data-wf="cxrf"   ><span class="ic">P</span>CXR -> CXRF Mod<span class="kbd">F2</span></div>
+        <div class="sb-item"    data-wf="rsx"    ><span class="ic">R</span>RSX Autopatch<span class="kbd">F3</span></div>
+        <div class="sb-item"    data-wf="health" ><span class="ic">D</span>Error &amp; System Diag<span class="kbd">F4</span></div>
+        <div class="sb-item"    data-wf="eeprom" ><span class="ic">E</span>EEPROM Inspector<span class="kbd">F5</span></div>
+        <div class="sb-item"    data-wf="direct" ><span class="ic">&gt;</span>Direct Commands<span class="kbd">F6</span></div>
+        <div class="sb-item"    data-wf="fan"    ><span class="ic">F</span>Fan Tuning<span class="kbd">F7</span></div>
+        <div class="sb-item"    data-wf="undervolt"><span class="ic">V</span>Undervolt<span class="kbd">F8</span></div>
+        <div class="sb-item"    data-wf="gate"   ><span class="ic">G</span>Checksum Gate<span class="kbd">F9</span></div>
+      </nav>
+      <div class="sb-section" style="padding-top:8px">Reference</div>
+      <nav class="sb-list">
+        <div class="sb-item"    data-wf="conn"   ><span class="ic">U</span>Connection Guide<span class="kbd">F10</span></div>
+        <div class="sb-item"    data-wf="errors" ><span class="ic">!</span>Error Codes<span class="kbd">F11</span></div>
+        <div class="sb-item"    data-wf="settings"><span class="ic">S</span>Settings<span class="kbd">F12</span></div>
+        <div class="sb-item"    data-wf="credits" ><span class="ic">★</span>Credits</div>
+      </nav>
+      <div class="sb-spacer"></div>
+      <div class="sb-foot">
+        <div><span class="lk" onclick="showShortcuts()">Keyboard shortcuts</span></div>
+        <div><span class="lk" onclick="window.open('https://www.instagram.com/nostamods/','_blank')">NostaMods</span></div>
+      </div>
+    </aside>
+
+    <!-- ── WORKSPACE ── -->
+    <section id="workspace">
+      <div class="ws-head">
+        <div>
+          <div class="ws-title" id="ws-title">Connect &amp; Authenticate</div>
+          <div class="ws-subtitle" id="ws-subtitle">Select a serial port and Syscon type to begin.</div>
+        </div>
+      </div>
+
+      <div class="ws-body">
+
+        <!-- ── WF: CONNECT ── -->
+        <div class="wf on" id="wf-connect">
+          <div class="card">
+            <div class="card-h"><span class="ttl">Connection</span></div>
+            <div class="card-b col">
+              <div class="kv">
+                <div class="k">Port</div>          <div class="v" id="cn-port">—</div>
+                <div class="k">SC Type</div>       <div class="v" id="cn-sctype">—</div>
+                <div class="k">Baud Rate</div>     <div class="v" id="cn-baud">—</div>
+                <div class="k">Sandbox</div>       <div class="v" id="cn-sandbox">off</div>
+                <div class="k">Auth Status</div>   <div class="v" id="cn-auth">not authenticated</div>
+              </div>
+              <div class="row">
+                <button class="btn btn-pri" onclick="doAuth()">Authenticate <span class="kbd">A</span></button>
+                <button class="btn" onclick="refreshPorts()">Refresh Ports <span class="kbd">F5</span></button>
+              </div>
+              <div class="alert al-info">
+                <div class="ai">i</div>
+                <div class="at">
+                  <strong>CXR</strong> &amp; <strong>SW</strong> use 57600 baud · <strong>CXRF</strong> uses 115200 baud.
+                  Authentication is required before any RSX patching to prevent bricking.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><span class="ttl">Quick Actions</span></div>
+            <div class="card-b">
+              <div class="row">
+                <button class="btn" onclick="runQuick('errlog')">Read errlog</button>
+                <button class="btn" onclick="runQuick('becount')">becount</button>
+                <button class="btn" onclick="runQuick('tsensor')">tsensor</button>
+                <button class="btn" onclick="runQuick('version')">version</button>
+                <button class="btn" onclick="runQuick('bsn')">bsn</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── WF: CXR -> CXRF ── -->
+        <div class="wf" id="wf-cxrf">
+          <div class="stepper" id="cxrf-stepper"></div>
+          <div id="cxrf-step-body"></div>
+        </div>
+
+        <!-- ── WF: RSX ── -->
+        <div class="wf" id="wf-rsx">
+          <div class="stepper" id="rsx-stepper"></div>
+          <div id="rsx-step-body"></div>
+        </div>
+
+        <!-- ── WF: HEALTH ── -->
+        <div class="wf" id="wf-health">
+          <div class="card">
+            <div class="card-h">
+              <span class="ttl">Error and System Diagnostic</span>
+              <span class="badge" id="hc-status">idle</span>
+            </div>
+            <div class="card-b col">
+              <div class="row">
+                <button class="btn btn-pri" onclick="doHealthCheck()">Run Full Diagnostic <span class="kbd">F4</span></button>
+                <span class="muted" style="font-size:11px">Reads bsn · version · boardconfig · tsensor · becount · patchvereep · errlog</span>
+              </div>
+              <div class="tile-grid" id="hc-tiles">
+                <div class="tile"><div class="tl">Board Serial</div><div class="tv dim" id="hc-bsn">—</div></div>
+                <div class="tile"><div class="tl">FW Version</div><div class="tv dim" id="hc-version">—</div></div>
+                <div class="tile"><div class="tl">Board Config</div><div class="tv dim" id="hc-board">—</div></div>
+                <div class="tile"><div class="tl">Boot / Err Count</div><div class="tv dim" id="hc-becount">—</div></div>
+                <div class="tile"><div class="tl">Temperatures</div><div class="tv dim" id="hc-temps">—</div></div>
+                <div class="tile"><div class="tl">Patch Version</div><div class="tv dim" id="hc-pver">—</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><span class="ttl">Error Log</span><span class="badge" id="hc-err-badge">—</span></div>
+            <div class="card-b">
+              <div class="code-ref" id="hc-errlog" style="white-space:pre-wrap;max-height:300px;overflow:auto">No data yet — run health check.</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><span class="ttl">Console Power</span></div>
+            <div class="card-b">
+              <div class="row">
+                <button class="btn btn-pri" id="pwr-btn" onclick="togglePower()">Bring up console</button>
+                <span class="muted" id="pwr-state" style="font-size:11px">currently: stopped</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── WF: EEPROM ── -->
+        <div class="wf" id="wf-eeprom">
+          <div class="card">
+            <div class="card-h"><span class="ttl">EEPROM / Memory Inspector</span></div>
+            <div class="card-b col">
+              <div class="row">
+                <span class="muted">Address (hex)</span>
+                <input class="input" id="eep-addr" placeholder="3290" style="width:100px" value="3290">
+                <span class="muted">Length</span>
+                <select class="input" id="eep-len" style="width:80px">
+                  <option>10</option><option selected>40</option><option>80</option><option>100</option>
+                </select>
+                <button class="btn btn-pri" onclick="doMemRead()">Read</button>
+                <span class="grow"></span>
+                <span class="muted" style="font-size:11px">CXR/SW use <code>EEP GET</code> · CXRF uses <code>r</code></span>
+              </div>
+              <div class="hex" id="hex-view">
+                <div class="muted" style="padding:14px;text-align:center;font-family:var(--ui)">Read an address to display memory.</div>
+              </div>
+              <div class="row" id="hex-edit-row" style="display:none">
+                <span class="muted">Selected:</span>
+                <span id="hex-sel-addr" style="font-family:var(--mono);color:var(--ax-h)">—</span>
+                <span class="muted">Current:</span>
+                <span id="hex-sel-val" style="font-family:var(--mono);color:var(--t-1)">—</span>
+                <span class="muted">-> New:</span>
+                <input class="input" id="hex-new-val" placeholder="FF" style="width:70px;text-transform:uppercase">
+                <button class="btn btn-warn" onclick="doMemWrite()">Write</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── WF: DIRECT ── -->
+        <div class="wf" id="wf-direct">
+          <div class="card">
+            <div class="card-h"><span class="ttl">Direct UART Commands</span></div>
+            <div class="card-b col">
+              <div class="alert al-info">
+                <div class="ai">i</div>
+                <div class="at">Use the terminal on the right (or press <kbd>/</kbd> to focus). <kbd>↑</kbd>/<kbd>↓</kbd> for command history. <kbd>Tab</kbd> for autocomplete.</div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+
+                <div class="tile" style="padding:14px">
+                  <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--t-3);margin-bottom:10px;font-weight:600">External Mode — CXR / SW</div>
+                  <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
+                    <tr><td colspan="2" style="color:var(--t-5);font-style:italic;padding:4px 0 2px">EEPROM</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">EEP GET &lt;addr&gt; &lt;len&gt;</td><td style="color:var(--t-2)">Read EEPROM bytes</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">EEP SET &lt;addr&gt; &lt;len&gt; &lt;data&gt;</td><td style="color:var(--t-2)">Write EEPROM bytes</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">ERRLOG GET 00</td><td style="color:var(--t-2)">Get error log entry 00–1F</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">AUTH1, AUTH2</td><td style="color:var(--t-2)">Authentication challenge</td></tr>
+                  </table>
+                </div>
+
+                <div class="tile" style="padding:14px">
+                  <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--t-3);margin-bottom:10px;font-weight:600">Internal Mode — CXRF / SW</div>
+                  <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
+                    <tr><td colspan="2" style="color:var(--t-5);font-style:italic;padding:4px 0 2px">Memory</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">r / w &lt;addr&gt; [data]</td><td style="color:var(--t-2)">Read / write byte</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">r16/w16 &lt;addr&gt; [data]</td><td style="color:var(--t-2)">Read / write word</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">r32/w32 &lt;addr&gt; [data]</td><td style="color:var(--t-2)">Read / write dword</td></tr>
+                    <tr><td colspan="2" style="color:var(--t-5);font-style:italic;padding:8px 0 2px">Diagnostics</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">errlog</td><td style="color:var(--t-2)">Show error log</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">clearerrlog</td><td style="color:var(--t-2)">Clear error log</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">csum</td><td style="color:var(--t-2)">Firmware checksum</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">eepcsum</td><td style="color:var(--t-2)">EEPROM checksum</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">tsensor [zone]</td><td style="color:var(--t-2)">Raw temperature reading</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">becount</td><td style="color:var(--t-2)">Boot / error count</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">getrtc</td><td style="color:var(--t-2)">Real-time clock</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">bsn</td><td style="color:var(--t-2)">Board serial number</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">boardconfig</td><td style="color:var(--t-2)">Board configuration</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">version</td><td style="color:var(--t-2)">SC firmware version</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">patchvereep</td><td style="color:var(--t-2)">Patch version (EEPROM)</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">patchverram</td><td style="color:var(--t-2)">Patch version (RAM)</td></tr>
+                    <tr><td colspan="2" style="color:var(--t-5);font-style:italic;padding:8px 0 2px">Power</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">bringup</td><td style="color:var(--t-2)">Power on</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">shutdown</td><td style="color:var(--t-2)">Power off</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">powerstate</td><td style="color:var(--t-2)">Current power state</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">powupcause</td><td style="color:var(--t-2)">Last power-up cause</td></tr>
+                    <tr><td colspan="2" style="color:var(--t-5);font-style:italic;padding:8px 0 2px">Fan</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">fantbl get/set/gettable</td><td style="color:var(--t-2)">Fan curve</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">fanconmode</td><td style="color:var(--t-2)">Fan control mode</td></tr>
+                    <tr><td style="color:var(--ax-h);font-weight:600;padding:3px 10px 3px 0;white-space:nowrap">duty get/set</td><td style="color:var(--t-2)">Fan duty cycle</td></tr>
+                  </table>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── WF: FAN ── -->
+        <div class="wf" id="wf-fan">
+          <div class="card">
+            <div class="card-h">
+              <span class="ttl">Fan Curve Editor</span>
+              <span class="badge warn">CXRF / FAT only</span>
+              <span class="badge" id="fan-status">unsaved</span>
+            </div>
+            <div class="card-b col">
+
+              <!-- Plot zeigt beide Kurven overlay -->
+              <div class="fancurve" id="fancurve">
+                <svg class="fc-svg" id="fc-svg" viewBox="0 0 700 320" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="fc-gradient" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%"  stop-color="#2c8fff" stop-opacity=".55"/>
+                      <stop offset="100%" stop-color="#2c8fff" stop-opacity="0"/>
+                    </linearGradient>
+                    <linearGradient id="fc-gradient-rsx" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%"  stop-color="#fbbf24" stop-opacity=".45"/>
+                      <stop offset="100%" stop-color="#fbbf24" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <g id="fc-zones"></g>
+                  <g id="fc-grid"></g>
+                  <g id="fc-axes"></g>
+                  <!-- CELL  layer -->
+                  <path id="fc-area-cell" class="fc-area" d=""/>
+                  <path id="fc-line-cell" class="fc-line" d=""/>
+                  <!-- RSX layer -->
+                  <path id="fc-area-rsx" class="fc-area rsx" d=""/>
+                  <path id="fc-line-rsx" class="fc-line rsx" d=""/>
+                  <!-- Tshutdown line -->
+                  <line id="fc-tshut-line" x1="0" y1="0" x2="0" y2="0" stroke="#f87171" stroke-width="1" stroke-dasharray="4 3" opacity=".55"/>
+                  <text id="fc-tshut-label" class="fc-axis-label" fill="#f87171" font-size="10"></text>
+                  <!-- Points -->
+                  <g id="fc-points-cell"></g>
+                  <g id="fc-points-rsx"></g>
+                </svg>
+                <div class="fc-tooltip" id="fc-tip"></div>
+                <div class="fc-legend">
+                  <span class="fc-leg cell on" id="leg-cell" onclick="setFanActive('cell')">CELL (CPU)</span>
+                  <span class="fc-leg rsx"          id="leg-rsx"  onclick="setFanActive('rsx')">RSX (GPU)</span>
+                </div>
+              </div>
+
+              <!-- Active table tab + thermal shutdown -->
+              <div class="row" style="justify-content:space-between">
+                <div class="tab-row">
+                  <div class="tab on cell" id="tab-cell" onclick="setFanActive('cell')">CELL Table</div>
+                  <div class="tab    rsx"  id="tab-rsx"  onclick="setFanActive('rsx')">RSX Table</div>
+                </div>
+                <div class="row" style="gap:8px">
+                  <span class="muted" style="font-size:11px">Thermal Shutdown</span>
+                  <input class="tshut-input" id="fan-tshut" type="number" min="50" max="110" value="85" onchange="onTShutChange()">
+                  <span class="muted" style="font-size:11px">°C</span>
+                </div>
+              </div>
+
+              <!-- Phase list for the active chip -->
+              <div class="phase-list" id="phase-list"></div>
+
+              <!-- Presets + actions -->
+              <div class="row">
+                <span class="muted" style="font-size:11px">Preset</span>
+                <div class="preset-row">
+                  <div class="preset on" onclick="setFanPreset(this,'stock')">Stock</div>
+                  <div class="preset"    onclick="setFanPreset(this,'quiet')">Quiet</div>
+                  <div class="preset"    onclick="setFanPreset(this,'perf')">Performance</div>
+                  <div class="preset"    onclick="setFanPreset(this,'aggr')">Aggressive</div>
+                </div>
+              </div>
+              <div class="row">
+                <button class="btn"          onclick="doFanReadFull()">Load from Console</button>
+                <button class="btn btn-warn" onclick="doFanWriteFull()">Save to Console</button>
+                <button class="btn"          onclick="resetFan()">Reset to Stock</button>
+                <span class="grow"></span>
+                <span class="muted" style="font-size:11px" id="fan-hint">Drag points or edit table values · CELL is blue, RSX is amber</span>
+              </div>
+
+              <div class="alert al-warn">
+                <div class="ai">!</div>
+                <div class="at">
+                  PS3 FAT has one physical fan but two thermal zones. The Syscon stores <strong>two separate 5-phase tables</strong>
+                  (CELL / RSX) — the chip with the higher temperature drives the fan. Speeds are 0–255 (≈%·2.55). Below
+                  <code>TMin</code> a phase deactivates, above <code>TMax</code> it activates the next. Adjacent phases overlap to
+                  create hysteresis.
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- ── WF: CHECKSUM GATE ── -->
+        <!-- ── WF: UNDERVOLT ── -->
+        <div class="wf" id="wf-undervolt">
+          <div class="card">
+            <div class="card-h">
+              <span class="ttl">Undervolt</span>
+              <span class="badge err">Use at your own risk</span>
+            </div>
+            <div class="card-b col">
+              <div class="alert al-err">
+                <div class="ai">!</div>
+                <div class="at"><strong>WARNING:</strong> Undervolting can cause system instability or damage. Use community-tested presets only. Test thoroughly after applying. Monitor for crashes and graphical artifacts.</div>
+              </div>
+              <div class="row">
+                <button class="btn on" id="uv-btn-auto"   onclick="uvSwitchMode('auto')">Auto Presets</button>
+                <button class="btn"    id="uv-btn-manual" onclick="uvSwitchMode('manual')">Manual Voltage</button>
+                <span class="grow"></span>
+                <button class="btn" onclick="showVoltageRanges()" title="Voltage ranges reference by DoublesAdvocat">Voltage Ranges</button>
+              </div>
+
+              <!-- ── Auto Presets ── -->
+              <div id="uv-auto">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
+                  <div class="tile" style="padding:14px">
+                    <div style="color:#cc0000;font-size:13px;font-weight:600;margin-bottom:10px">CELL (CPU)</div>
+                    <div style="display:flex;flex-direction:column;gap:6px">
+                      <label style="cursor:pointer"><input type="radio" name="uv-cell-nm" value="90nm" checked> 90nm CELL</label>
+                      <label style="cursor:pointer"><input type="radio" name="uv-cell-nm" value="65nm"> 65nm CELL</label>
+                      <label style="cursor:pointer"><input type="radio" name="uv-cell-nm" value="45nm"> 45nm CELL</label>
+                    </div>
+                    <div class="muted" style="font-size:10px;margin-top:10px;padding:6px;background:var(--bg-3);border-radius:4px">Lower voltage · Reduce heat · Extend life</div>
+                  </div>
+                  <div class="tile" style="padding:14px">
+                    <div style="color:var(--ax);font-size:13px;font-weight:600;margin-bottom:10px">RSX (GPU)</div>
+                    <div style="display:flex;flex-direction:column;gap:6px">
+                      <label style="cursor:pointer"><input type="radio" name="uv-rsx-nm" value="90nm" checked> 90nm RSX (CECHA/B)</label>
+                      <label style="cursor:pointer"><input type="radio" name="uv-rsx-nm" value="65nm"> 65nm RSX (CECHC/E/G)</label>
+                      <label style="cursor:pointer"><input type="radio" name="uv-rsx-nm" value="40nm"> 40nm RSX (CECHH/J/K)</label>
+                    </div>
+                    <div class="muted" style="font-size:10px;margin-top:10px;padding:6px;background:var(--bg-3);border-radius:4px">Chip-specific · Lower GPU temp · Test with games</div>
+                  </div>
+                </div>
+                <div class="row">
+                  <button class="btn" style="background:#cc0000;color:#fff;flex:1" onclick="doUndervolt('cell')">Apply CELL Undervolt</button>
+                  <button class="btn" style="background:var(--ax);color:#fff;flex:1"  onclick="doUndervolt('rsx')">Apply RSX Undervolt</button>
+                </div>
+                <div class="row" style="margin-top:4px">
+                  <label style="cursor:pointer;color:var(--warn)"><input type="checkbox" id="uv-reverse"> Reverse to Stock</label>
+                  <span class="muted" style="font-size:11px">Restores original factory voltage values</span>
+                </div>
+              </div>
+
+              <!-- ── Manual Voltage ── -->
+              <div id="uv-manual" style="display:none">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                  <div class="tile" style="padding:14px">
+                    <div style="color:#cc0000;font-size:13px;font-weight:600;margin-bottom:10px">CELL (CPU) Voltage</div>
+                    <input type="range" id="uv-cell-slider" min="0" max="61" value="24" style="width:100%;accent-color:#cc0000" oninput="uvSliderUpdate('cell')">
+                    <div style="text-align:center;margin-top:8px">
+                      <code id="uv-cell-display" style="font-size:14px;color:var(--ok)">1.1375V (0x1D)</code>
+                    </div>
+                    <button class="btn" style="background:#cc0000;color:#fff;width:100%;margin-top:10px" onclick="doUndervoltManual('cell')">Apply CELL</button>
+                  </div>
+                  <div class="tile" style="padding:14px">
+                    <div style="color:var(--ax);font-size:13px;font-weight:600;margin-bottom:10px">RSX (GPU) Voltage</div>
+                    <input type="range" id="uv-rsx-slider" min="0" max="61" value="28" style="width:100%;accent-color:var(--ax)" oninput="uvSliderUpdate('rsx')">
+                    <div style="text-align:center;margin-top:8px">
+                      <code id="uv-rsx-display" style="font-size:14px;color:var(--ok)">1.1875V (0x1B)</code>
+                    </div>
+                    <button class="btn" style="background:var(--ax);color:#fff;width:100%;margin-top:10px" onclick="doUndervoltManual('rsx')">Apply RSX</button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="wf" id="wf-gate">
+          <div class="card">
+            <div class="card-h">
+              <span class="ttl">Checksum Gate (0x3292)</span>
+              <span class="badge err">Professional Use</span>
+            </div>
+            <div class="card-b col">
+              <div class="alert al-err">
+                <div class="ai">!</div>
+                <div class="at">
+                  <strong>Newly discovered, not 100% tested.</strong> Disabling writes <code>0xFF</code> to <code>0x3292</code>, suppressing
+                  triple-beep on EEPROM checksum mismatch. This permits CXR -> CXRF transition without an explicit checksum correction
+                  step. Only use this if you know what you are doing.
+                </div>
+              </div>
+              <div class="row">
+                <button class="btn" onclick="doGateRead()">Read current state</button>
+                <span class="muted">Current: <span id="gate-cur" style="font-family:var(--mono);color:var(--t-1)">unknown</span></span>
+              </div>
+              <div class="row">
+                <button class="btn btn-warn" onclick="doGate(true)">Disable Gate (write 0xFF)</button>
+                <button class="btn btn-ok"   onclick="doGate(false)">Enable Gate (write 0x00)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── WF: CONNECTION GUIDE ── -->
+        <div class="wf" id="wf-conn">
+          <div class="card">
+            <div class="card-h">
+              <span class="ttl">PS3 Serial Connection Points</span>
+              <span class="badge" id="conn-badge">choose a model</span>
+            </div>
+            <div class="card-b">
+              <div class="conn-grid">
+                <div class="conn-list" id="conn-list"></div>
+                <div class="conn-img-wrap">
+                  <div class="conn-img-head">
+                    <span id="conn-title" class="muted">Select a board model on the left</span>
+                    <span class="grow"></span>
+                    <button class="btn btn-sm" id="conn-zoom-btn" onclick="zoomConnImg()" disabled>Toggle zoom</button>
+                  </div>
+                  <div class="conn-img-area" id="conn-img-area">
+                    <div class="conn-empty">No image loaded.</div>
+                  </div>
+                </div>
+              </div>
+              <div class="alert al-info" style="margin-top:14px">
+                <div class="ai">i</div>
+                <div class="at">
+                  Identify your PS3 by the model number on the bottom sticker (e.g. <code>CECHA01</code>). The list maps model numbers to board revisions
+                  and shows the corresponding UART testpads. Click the image to zoom in.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── WF: ERROR CODES ── -->
+        <div class="wf" id="wf-errors">
+          <div class="card">
+            <div class="card-h">
+              <span class="ttl">PS3 Error Codes</span>
+              <span class="badge" id="err-count">—</span>
+            </div>
+            <div class="card-b col">
+              <div class="err-search">
+                <input class="input grow" id="err-q" placeholder="Search by code, label, or description (e.g. 'A0801', 'thermal', 'rsx')" oninput="filterErrors()">
+                <button class="btn" onclick="document.getElementById('err-q').value='';filterErrors()">Clear</button>
+                <button class="btn btn-pri" onclick="openErrorWiki()">Open full wiki ↗</button>
+              </div>
+              <div class="err-list" id="err-list"></div>
+              <div class="alert al-info">
+                <div class="ai">i</div>
+                <div class="at">
+                  When the terminal output contains a known code (e.g. <code>A0801001</code> or <code>1002</code>), the explanation
+                  appears inline below the line. The full Developer-Wiki HTML page is bundled — click "Open full wiki" to view it.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── WF: CREDITS ── -->
+        <div class="wf" id="wf-credits">
+          <div class="card">
+            <div class="card-h"><span class="ttl">Credits</span></div>
+            <div class="card-b col">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+
+                <div class="tile" style="padding:18px">
+                  <div style="font-size:11px;color:var(--t-3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">General SysCon Research</div>
+                  <div style="font-size:16px;font-weight:600;color:var(--t-1)">M4j0r</div>
+                  <div class="muted" style="font-size:11px;margin-top:6px">Foundational work on PS3 Syscon internals, UART protocol, and diagnostic commands.</div>
+                </div>
+
+                <div class="tile" style="padding:18px">
+                  <div style="font-size:11px;color:var(--t-3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Auth Methods &amp; Security</div>
+                  <div style="font-size:16px;font-weight:600;color:var(--t-1)">Sage</div>
+                  <div class="muted" style="font-size:11px;margin-top:6px">Reverse-engineered authentication methods and Syscon security mechanisms.</div>
+                </div>
+
+                <div class="tile" style="padding:18px">
+                  <div style="font-size:11px;color:var(--t-3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Voltage Ranges</div>
+                  <div style="font-size:16px;font-weight:600;color:var(--t-1)">DoublesAdvocat</div>
+                  <div class="muted" style="font-size:11px;margin-top:6px">Research and documentation of safe voltage ranges per chip revision.
+                    <span class="lk" style="display:inline-block;margin-top:4px" onclick="showVoltageRanges()">View voltage table</span>
+                  </div>
+                </div>
+
+                <div class="tile" style="padding:18px">
+                  <div style="font-size:11px;color:var(--t-3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Visual Input &amp; Design</div>
+                  <div style="font-size:16px;font-weight:600;color:var(--t-1)">Calyps0man</div>
+                  <div class="muted" style="font-size:11px;margin-top:6px">UI feedback, visual design input, and testing.</div>
+                </div>
+
+              </div>
+
+              <div style="margin-top:8px;padding:14px;background:var(--bg-2);border-radius:var(--r-3);border:1px solid var(--bd-1);text-align:center">
+                <div style="font-size:11px;color:var(--t-3)">Tool built by <span style="color:var(--t-1);font-weight:600">NostaMods</span> &nbsp;·&nbsp; <span class="lk" onclick="window.open('https://www.instagram.com/nostamods/','_blank')">instagram.com/nostamods</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── WF: SETTINGS ── -->
+        <div class="wf" id="wf-settings">
+
+          <div class="card">
+            <div class="card-h"><span class="ttl">Appearance</span></div>
+            <div class="card-b col">
+              <div class="row" style="gap:24px">
+                <label class="toggle">
+                  <input type="checkbox" id="set-light" onchange="toggleTheme(this.checked)">
+                  <span class="tk"></span>
+                  <span class="tlbl">Light Mode (silver palette · terminal stays dark)</span>
+                </label>
+              </div>
+              <div class="row" style="gap:18px;align-items:flex-start">
+                <div style="min-width:150px"><div style="font-size:11px;color:var(--t-3);margin-bottom:6px">Accent colour</div>
+                  <div class="swatch-row" id="theme-swatches"></div>
+                </div>
+                <div><div style="font-size:11px;color:var(--t-3);margin-bottom:6px">Custom</div>
+                  <label class="color-pick">
+                    <input type="color" id="custom-accent" value="#2c8fff" oninput="applyCustomAccent(this.value)">
+                    <code id="custom-accent-hex">#2c8fff</code>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:11px;color:var(--t-3);margin-bottom:6px">Interface font</div>
+                <div class="font-row" id="font-row">
+                  <div class="font-opt on" data-font="default" onclick="applyFont('default')">
+                    <div class="fname" style="font-family:'Inter'">Inter</div>
+                    <div class="fdesc">Modern, clean, default</div>
+                  </div>
+                  <div class="font-opt" data-font="spaceage" onclick="applyFont('spaceage')">
+                    <div class="fname" style="font-family:'SpaceAge','Inter'">Space Age</div>
+                    <div class="fdesc">Original NostaMods font</div>
+                  </div>
+                  <div class="font-opt" data-font="system" onclick="applyFont('system')">
+                    <div class="fname" style="font-family:system-ui">System</div>
+                    <div class="fdesc">OS default sans-serif</div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:11px;color:var(--t-3);margin-bottom:6px">Density</div>
+                <div class="font-row">
+                  <div class="font-opt" data-density="dense"  onclick="applyDensity('dense')"><div class="fname">Dense</div><div class="fdesc">More info per pixel</div></div>
+                  <div class="font-opt on" data-density="normal" onclick="applyDensity('normal')"><div class="fname">Normal</div><div class="fdesc">Default</div></div>
+                  <div class="font-opt" data-density="cozy"   onclick="applyDensity('cozy')"><div class="fname">Cozy</div><div class="fdesc">More breathing room</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><span class="ttl">Session Settings</span></div>
+            <div class="card-b col">
+              <div class="row" style="gap:24px">
+                <label class="toggle">
+                  <input type="checkbox" id="set-sandbox" onchange="onSandboxToggle()">
+                  <span class="tk"></span>
+                  <span class="tlbl">Sandbox Mode (simulate without hardware)</span>
+                </label>
+              </div>
+              <div class="row" style="gap:24px">
+                <label class="toggle">
+                  <input type="checkbox" id="set-livemon">
+                  <span class="tk"></span>
+                  <span class="tlbl">Live monitor (auto-poll temperatures every 5s)</span>
+                </label>
+              </div>
+              <div class="row" style="gap:24px">
+                <label class="toggle">
+                  <input type="checkbox" id="set-autoauth" checked>
+                  <span class="tk"></span>
+                  <span class="tlbl">Auto-authenticate when port + SC are selected</span>
+                </label>
+              </div>
+              <div class="row">
+                <button class="btn btn-pri" onclick="doSaveSettings()">Save Settings</button>
+                <button class="btn" onclick="resetSettings()">Reset all settings</button>
+                <button class="btn" onclick="showGuide()">Show welcome guide again</button>
+                <span class="muted" style="font-size:11px">Settings are saved to localStorage automatically</span>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ttl">Keyboard Shortcuts</span></div>
+            <div class="card-b">
+              <div class="shortcut-grid">
+                <div><span class="l">Connect &amp; Auth</span>     <span class="r"><kbd>F1</kbd></span></div>
+                <div><span class="l">CXR -> CXRF Mod</span>      <span class="r"><kbd>F2</kbd></span></div>
+                <div><span class="l">RSX Autopatch</span>       <span class="r"><kbd>F3</kbd></span></div>
+                <div><span class="l">Error &amp; System Diag</span><span class="r"><kbd>F4</kbd></span></div>
+                <div><span class="l">EEPROM Inspector</span>    <span class="r"><kbd>F5</kbd></span></div>
+                <div><span class="l">Direct Commands</span>     <span class="r"><kbd>F6</kbd></span></div>
+                <div><span class="l">Fan Tuning</span>          <span class="r"><kbd>F7</kbd></span></div>
+                <div><span class="l">Undervolt</span>           <span class="r"><kbd>F8</kbd></span></div>
+                <div><span class="l">Checksum Gate</span>       <span class="r"><kbd>F9</kbd></span></div>
+                <div><span class="l">Connection Guide</span>    <span class="r"><kbd>F10</kbd></span></div>
+                <div><span class="l">Error Codes</span>         <span class="r"><kbd>F11</kbd></span></div>
+                <div><span class="l">Settings</span>            <span class="r"><kbd>F12</kbd></span></div>
+                <div style="grid-column:1 / -1;height:1px;background:var(--bd-1);margin:6px 0"></div>
+                <div><span class="l">Authenticate</span>        <span class="r"><kbd>Ctrl</kbd>+<kbd>A</kbd></span></div>
+                <div><span class="l">Quick errlog</span>        <span class="r"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd></span></div>
+                <div><span class="l">Quick health check</span>  <span class="r"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd></span></div>
+                <div><span class="l">Refresh ports</span>       <span class="r"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd></span></div>
+                <div><span class="l">Re-run last command</span> <span class="r"><kbd>Ctrl</kbd>+<kbd>R</kbd></span></div>
+                <div><span class="l">Focus terminal</span>      <span class="r"><kbd>/</kbd></span></div>
+                <div><span class="l">Terminal history</span>    <span class="r"><kbd>↑</kbd> <kbd>↓</kbd></span></div>
+                <div><span class="l">Autocomplete</span>        <span class="r"><kbd>Tab</kbd></span></div>
+                <div><span class="l">Clear terminal</span>      <span class="r"><kbd>Ctrl</kbd>+<kbd>L</kbd></span></div>
+                <div><span class="l">Cancel modal</span>        <span class="r"><kbd>Esc</kbd></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── TERMINAL PANE ── -->
+    <aside id="term-pane">
+      <div id="term-resize"></div>
+
+      <div class="term-head">
+        <span class="ttl">Terminal</span>
+        <span id="term-mode" class="badge">idle</span>
+        <button class="btn btn-sm" onclick="clearTerm()" title="Clear (Ctrl+L)">Clear</button>
+      </div>
+
+      <div class="term-out" id="term-out"></div>
+
+      <div class="term-ac hidden" id="term-ac"></div>
+
+      <div class="term-input">
+        <span class="pmpt">PS3:/#</span>
+        <input id="term-cmd" placeholder='try "errlog", "r 3290", "EEP GET 3961 01"…' autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="term-foot">
+        <div class="seg" id="tf-conn"><span class="d"></span><span>Disconnected</span></div>
+        <div class="seg" id="tf-auth"><span class="d"></span><span>No Auth</span></div>
+        <div class="seg flex"><span id="tf-stat">—</span></div>
+      </div>
+    </aside>
+
+  </div>
+</div>
+
+<!-- ── MODAL: Generic ── -->
+<div class="modal-bg hidden" id="modal-bg" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal">
+    <div class="modal-h">
+      <span class="t" id="modal-title">Title</span>
+      <button class="x" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-b" id="modal-body"></div>
+    <div class="modal-f" id="modal-footer"></div>
+  </div>
+</div>
+
+<!-- ── BOOT SCREEN ── -->
+<div id="boot-screen">
+  <div id="boot-top">
+    <div id="boot-logo">NostaMods Diagnostic Systems</div>
+    <div id="boot-title">NOSTADIAG</div>
+    <div id="boot-sub">PS3 SYSCON WORKBENCH  ·  v2.0  ·  UART DIAGNOSTIC INTERFACE</div>
+    <div id="boot-divider"></div>
+    <div id="boot-log"></div>
+  </div>
+  <div id="boot-bottom">
+    <div id="boot-bar-label">SYSTEM INITIALISATION</div>
+    <div id="boot-bar-track"><div id="boot-bar-fill"></div></div>
+    <div id="boot-status">WAITING FOR BRIDGE...</div>
+  </div>
+</div>
+
+<!-- ── WELCOME GUIDE ── -->
+<div id="guide-overlay" class="hidden">
+  <div id="guide-card">
+    <div class="guide-glow-border"></div>
+    <div id="guide-body">
+
+      <!-- Step 1: Welcome -->
+      <div class="guide-step active" id="guide-s0">
+        <span class="guide-icon">NostaDiag</span>
+        <div class="guide-title">Welcome to NostaDiag v2.0</div>
+        <div class="guide-text">
+          A diagnostic workbench for PS3 Syscon chips.<br><br>
+          Read error logs, patch RSX chips, inspect EEPROM memory,
+          tune fan curves, apply undervolts — all over UART, directly
+          from your PC. No soldering of a modchip required.
+        </div>
+      </div>
+
+      <!-- Step 2: Connect -->
+      <div class="guide-step" id="guide-s1">
+        <span class="guide-icon">Connect</span>
+        <div class="guide-title">Step 1 — Connect your PS3</div>
+        <div class="guide-text">
+          Select your <code>COM port</code> and <code>Syscon type</code>
+          in the top bar, then hit <strong>Authenticate</strong>.<br><br>
+          Not sure which type?<br>
+          <code>CXR</code> / <code>SW</code> → 57600 baud &nbsp;·&nbsp;
+          <code>CXRF</code> → 115200 baud<br><br>
+          The <strong>terminal on the right</strong> shows all live output.
+          Use <kbd>/</kbd> to focus it and type commands directly.
+        </div>
+      </div>
+
+      <!-- Step 3: Workflows -->
+      <div class="guide-step" id="guide-s2">
+        <span class="guide-icon">Workflows</span>
+        <div class="guide-title">Step 2 — Pick a Workflow</div>
+        <div class="guide-text">
+          Use the <strong>sidebar</strong> or <kbd>F1</kbd>–<kbd>F12</kbd> to switch between tools:
+        </div>
+        <div class="guide-chips">
+          <div class="guide-chip"><span class="ic">D</span>Error &amp; System Diag</div>
+          <div class="guide-chip"><span class="ic">R</span>RSX Autopatch</div>
+          <div class="guide-chip"><span class="ic">E</span>EEPROM Inspector</div>
+          <div class="guide-chip"><span class="ic">F</span>Fan Tuning</div>
+          <div class="guide-chip"><span class="ic">V</span>Undervolt</div>
+          <div class="guide-chip"><span class="ic">P</span>CXR → CXRF Mod</div>
+        </div>
+      </div>
+
+      <!-- Step 4: Ready -->
+      <div class="guide-step" id="guide-s3">
+        <span class="guide-icon">Ready</span>
+        <div class="guide-title">You're all set!</div>
+        <div class="guide-text">
+          Start with <strong>Connect &amp; Auth</strong> (<kbd>F1</kbd>) to authenticate,
+          then explore the workflows.<br><br>
+          Need help?
+          <ul style="margin:10px 0 0 18px;display:flex;flex-direction:column;gap:5px">
+            <li><code>F6</code> → Direct Commands reference</li>
+            <li><code>F11</code> → Error Codes database</li>
+            <li><code>F12</code> → Settings &amp; keyboard shortcuts</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+    <div id="guide-footer">
+      <button id="guide-skip" onclick="guideSkip()">Skip guide</button>
+      <div class="guide-dots" id="guide-dots"></div>
+      <button id="guide-next" onclick="guideNext()">Next →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOASTS ── -->
+<div class="toasts" id="toasts"></div>
+
+<script>
+/* ════════════════════════════════════════════════════════════
+   GLOBAL STATE
+   ════════════════════════════════════════════════════════════ */
+const state = {
+  isAuth: false,
+  consoleRunning: false,
+  sandbox: false,
+  liveMonitor: false,
+  liveMonitorTimer: null,
+  autoAuth: true,
+  currentWf: 'connect',
+  cmdHistory: [],
+  cmdHistoryIdx: -1,
+  lastCmd: '',
+  hexAddr: 0,
+  hexBytes: [],
+  hexSel: -1,
+  cxrfStep: 0,
+  rsxStep: 0,
+};
+
+const port = () => document.getElementById('port-sel').value;
+const sc   = () => document.getElementById('sc-type').value;
+const api  = () => window.pywebview ? window.pywebview.api : null;
+
+const baud = (t) => t === 'CXRF' ? '115200' : '57600';
+
+/* ════════════════════════════════════════════════════════════
+   COMMAND DICTIONARY (autocomplete + reference)
+   ════════════════════════════════════════════════════════════ */
+const CMD_DICT = [
+  ['errlog',      'Show error log'],
+  ['clearerrlog', 'Clear error log'],
+  ['csum',        'Firmware checksum'],
+  ['eepcsum',     'EEPROM checksum (with corrections)'],
+  ['tsensor',     'Raw temperature sensor'],
+  ['becount',     'Boot / error count'],
+  ['getrtc',      'Read real-time clock'],
+  ['rtcreset',    'Reset RTC'],
+  ['bsn',         'Board serial number'],
+  ['boardconfig', 'Board configuration'],
+  ['version',     'SC firmware version'],
+  ['patchvereep', 'Patch version (EEPROM)'],
+  ['patchverram', 'Patch version (RAM)'],
+  ['bringup',     'Power on console'],
+  ['shutdown',    'Power off console'],
+  ['powerstate',  'Get power state'],
+  ['powupcause',  'Last power-up cause'],
+  ['fantbl',      'Fan table commands'],
+  ['fanconmode',  'Fan control mode'],
+  ['duty',        'Fan duty cycle'],
+  ['scopen',      'Open Syscon (SW only)'],
+  ['scclose',     'Close Syscon (SW only)'],
+  ['EEP GET',     'External: read EEPROM'],
+  ['EEP SET',     'External: write EEPROM'],
+  ['ERRLOG GET',  'External: get error log entry'],
+  ['r ',          'Read byte from address'],
+  ['w ',          'Write byte to address'],
+  ['r16 ',        'Read word from address'],
+  ['w16 ',        'Write word to address'],
+  ['r32 ',        'Read dword from address'],
+  ['w32 ',        'Write dword to address'],
+];
+
+/* ════════════════════════════════════════════════════════════
+   ERROR CODE DATABASE (for inline annotations)
+   ════════════════════════════════════════════════════════════ */
+const ERROR_DB = {
+  'A0401001': ['BE_VRAM_POWER_FAIL',  'Cell VRAM power failure — check VRM & caps near Cell processor'],
+  'A0401002': ['RSX_VRAM_POWER_FAIL', 'RSX VRAM power failure — check VRM & caps near RSX GPU'],
+  'A0801001': ['BE_VRM_FAIL',         'Cell voltage regulator failure'],
+  'A0801002': ['RSX_VRM_FAIL',        'RSX voltage regulator failure'],
+  'A0201001': ['BE_THERMAL_FAIL',     'Cell overtemperature — repaste & clean fan'],
+  'A0201002': ['RSX_THERMAL_FAIL',    'RSX overtemperature — repaste & clean fan'],
+  'A0101001': ['BE_POWER_FAIL',       'Cell main power failure'],
+  'A0101002': ['RSX_POWER_FAIL',      'RSX main power failure'],
+  'A0601001': ['BE_PLL_FAIL',         'Cell PLL/clock failure'],
+  'A0601002': ['RSX_PLL_FAIL',        'RSX PLL/clock failure'],
+  'A0301001': ['BE_BOOT_FAIL',        'Cell boot failure'],
+  'A0301002': ['RSX_BOOT_FAIL',       'RSX boot failure'],
+  'A0701001': ['BE_EXT_FAIL',         'Cell external fault — check XDR RAM'],
+  'A0701002': ['RSX_EXT_FAIL',        'RSX external fault — check GDDR3 VRAM'],
+};
+
+/* ════════════════════════════════════════════════════════════
+   INIT
+   ════════════════════════════════════════════════════════════ */
+window.addEventListener('load', () => {
+  loadSettings();
+  buildFan();
+  buildCXRFSteps();
+  buildRSXSteps();
+  setupKeyboard();
+  setupSidebar();
+  setupTerm();
+  setupResizer();
+  refreshSettingsView();
+  termWrite('NostaDiag — PS3 Syscon Workbench v2.0', 'dim');
+  termWrite('Waiting for backend bridge…', 'dim');
+});
+
+let _bridgeReady = false;
+
+function _applyLoadedSettings(saved) {
+  if (saved && typeof saved === 'object') Object.assign(settings, saved);
+  _applySettings();
+  refreshSettingsView();
+  if (!settings.guide_seen) showGuide();
+}
+
+// Bridge watchdog — if the bridge isn't ready after 120 s, offer a settings
+// reset (via the HTTP server, no bridge required).
+let _bridgeWatchdog = setTimeout(function () {
+  if (_bridgeReady) return;
+  const yes = confirm(
+    'NostaDiag has been starting for over 2 minutes.\n\n' +
+    'This can be caused by a corrupt settings file.\n\n' +
+    'Delete settings.json and restart the app now?'
+  );
+  if (!yes) return;
+  const st = document.getElementById('boot-status');
+  if (st) st.textContent = 'RESETTING SETTINGS — PLEASE WAIT…';
+  fetch('/reset-settings')
+    .then(function () {
+      if (st) st.textContent = 'RESTARTING…';
+    })
+    .catch(function () {
+      if (st) st.textContent = 'RESET FAILED — PLEASE DELETE settings.json MANUALLY AND RESTART';
+    });
+}, 120000);
+
+function onBridgeReady() {
+  if (_bridgeReady) return;
+  _bridgeReady = true;
+  clearTimeout(_bridgeWatchdog);
+  bootDismiss();
+  termWrite('Bridge ready.', 'dim');
+  refreshPorts();
+  try {
+    const r = api().settings_load();
+    // pywebview 4.x returns a Promise; older versions return the value directly
+    if (r && typeof r.then === 'function') {
+      r.then(_applyLoadedSettings).catch(() => _applyLoadedSettings({}));
+    } else {
+      _applyLoadedSettings(r || {});
+    }
+  } catch (e) {
+    _applyLoadedSettings({});
+  }
+}
+
+window.addEventListener('pywebviewready', onBridgeReady);
+
+/* ════════════════════════════════════════════════════════════
+   SIDEBAR / WORKFLOWS
+   ════════════════════════════════════════════════════════════ */
+const WF_META = {
+  connect:  ['Connect &amp; Authenticate', 'Select a serial port and Syscon type to begin.'],
+  cxrf:     ['CXR -> CXRF Modification',   'Guided procedure to convert a CXR Mullion Syscon to CXRF mode.'],
+  rsx:      ['RSX Autopatch',             'Apply RSX patches for failing 40nm and 65nm chips. Auth required.'],
+  health:   ['Error and System Diagnostic', 'Reads errlog, BSN, version, board config, temperatures, boot count and patch version in a single pass.'],
+  eeprom:   ['EEPROM Inspector',          'Read and edit Syscon memory in a hex grid.'],
+  direct:   ['Direct Commands',           'Send arbitrary UART commands. Reference table on the right.'],
+  fan:        ['Fan Curve Tuning',          'Adjust per-chip 10-phase fan tables (CXRF / FAT only).'],
+  undervolt:  ['Undervolt',               'Apply community-tested CELL/RSX voltage presets or set a manual voltage. CXRF only.'],
+  gate:       ['Checksum Gate Toggle',    'Read or modify byte at 0x3292. Professional use only.'],
+  conn:       ['PS3 Serial Connection Guide', 'Solder/testpad locations for every PS3 board revision.'],
+  errors:     ['PS3 Error Code Reference',  'Searchable database of known Syscon and console error codes.'],
+  settings:   ['Settings',                'Appearance, session preferences, keyboard reference.'],
+  credits:    ['Credits',                 'Thanks to the researchers and contributors who made this tool possible.'],
+};
+
+function setupSidebar() {
+  document.querySelectorAll('.sb-item').forEach(item => {
+    if (item.dataset.wf) item.addEventListener('click', () => switchWorkflow(item.dataset.wf));
+  });
+}
+
+function switchWorkflow(id) {
+  state.currentWf = id;
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.toggle('on', i.dataset.wf === id));
+  document.querySelectorAll('.wf').forEach(w => w.classList.toggle('on', w.id === 'wf-' + id));
+  const meta = WF_META[id] || ['', ''];
+  document.getElementById('ws-title').innerHTML    = meta[0];
+  document.getElementById('ws-subtitle').innerHTML = meta[1];
+
+  if (id === 'connect') refreshConnectView();
+  if (id === 'cxrf')    renderCXRFStep();
+  if (id === 'rsx')     renderRSXStep();
+  if (id === 'gate')    document.getElementById('gate-cur').textContent = 'unknown';
+  if (id === 'conn')    renderConnList();
+  if (id === 'errors')  { renderErrorList(); }
+  if (id === 'settings') refreshSettingsView();
+}
+
+/* ════════════════════════════════════════════════════════════
+   CONNECT VIEW
+   ════════════════════════════════════════════════════════════ */
+function refreshConnectView() {
+  document.getElementById('cn-port').textContent    = port() || '— (none selected)';
+  document.getElementById('cn-sctype').textContent  = sc();
+  document.getElementById('cn-baud').textContent    = baud(sc()) + ' baud';
+  document.getElementById('cn-sandbox').textContent = state.sandbox ? 'on (simulated)' : 'off';
+  document.getElementById('cn-auth').innerHTML      = state.isAuth
+    ? '<span style="color:var(--ok)">authenticated</span>'
+    : '<span style="color:var(--err)">not authenticated</span>';
+}
+
+/* ════════════════════════════════════════════════════════════
+   PORT / SC / SANDBOX
+   ════════════════════════════════════════════════════════════ */
+function refreshPorts() {
+  const a = api();
+  if (!a) return;
+  a.get_ports().then(ports => {
+    const sel = document.getElementById('port-sel');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— no port —</option>';
+    (ports || []).forEach(p => {
+      const o = document.createElement('option');
+      o.value = o.textContent = p;
+      if (p === cur) o.selected = true;
+      sel.appendChild(o);
+    });
+    if (!cur && ports && ports.length) sel.value = ports[0];
+    updateConnPill();
+    refreshConnectView();
+    if (ports && ports.length) {
+      termWrite('Ports: ' + ports.join(', '), 'dim');
+    } else {
+      termWrite('No serial ports detected.', 'warn');
+    }
+  });
+}
+
+function onSCChange() {
+  document.querySelector('#baud .v').textContent = baud(sc());
+  refreshConnectView();
+  state.isAuth = false;
+  updateAuthPill();
+  termWrite('SC type -> ' + sc() + ' (' + baud(sc()) + ' baud)', 'dim');
+}
+
+function onSandboxToggle() {
+  const a = document.getElementById('sb-sw').checked;
+  const b = document.getElementById('set-sandbox').checked;
+  // sync both toggles
+  state.sandbox = (event.target.id === 'sb-sw') ? a : b;
+  document.getElementById('sb-sw').checked = state.sandbox;
+  document.getElementById('set-sandbox').checked = state.sandbox;
+  document.body.classList.toggle('sandbox', state.sandbox);
+  if (api()) api().set_sandbox(state.sandbox);
+  refreshConnectView();
+}
+
+document.getElementById('port-sel').addEventListener('change', () => {
+  refreshConnectView();
+  updateConnPill();
+});
+
+function updateConnPill() {
+  const p = document.getElementById('conn-pill');
+  const pf = document.getElementById('tf-conn');
+  if (port()) {
+    p.className = 'tb-pill ok';  p.querySelector('span:last-child').textContent = port();
+    pf.classList.add('live');     pf.querySelector('span:last-child').textContent = 'Connected ' + port();
+  } else {
+    p.className = 'tb-pill';      p.querySelector('span:last-child').textContent = 'No port';
+    pf.classList.remove('live');  pf.querySelector('span:last-child').textContent = 'Disconnected';
+  }
+}
+function updateAuthPill() {
+  const p = document.getElementById('auth-pill');
+  const f = document.getElementById('tf-auth');
+  if (state.isAuth) {
+    p.className = 'tb-pill ok';  p.querySelector('span:last-child').textContent = 'Authenticated';
+    f.classList.add('live');     f.querySelector('span:last-child').textContent = 'Authenticated';
+  } else {
+    p.className = 'tb-pill';     p.querySelector('span:last-child').textContent = 'No Auth';
+    f.classList.remove('live');  f.querySelector('span:last-child').textContent = 'No Auth';
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   AUTHENTICATION
+   ════════════════════════════════════════════════════════════ */
+function doAuth() {
+  const a = api();
+  if (!a) return toast('Backend not ready', 'err');
+  if (!port() && !state.sandbox) return toast('Select a port first', 'warn');
+  setTermMode('auth');
+  termWrite('> Authenticating (' + sc() + ')…', 'cmd');
+  a.authenticate(port(), sc());
+}
+
+function onAuthOK() {
+  state.isAuth = true;
+  updateAuthPill();
+  refreshConnectView();
+  setTermMode('ready');
+  toast('Authentication successful', 'ok');
+  if (state.currentWf === 'cxrf') { state.cxrfStep = Math.max(state.cxrfStep, 1); renderCXRFStep(); }
+  if (state.currentWf === 'rsx')  { state.rsxStep  = Math.max(state.rsxStep,  1); renderRSXStep();  }
+}
+function onAuthFail(msg) {
+  state.isAuth = false;
+  updateAuthPill();
+  refreshConnectView();
+  setTermMode('idle');
+  toast('Authentication failed: ' + msg, 'err');
+}
+
+/* ════════════════════════════════════════════════════════════
+   QUICK COMMANDS
+   ════════════════════════════════════════════════════════════ */
+function runQuick(name) {
+  const a = api();
+  if (!a) return;
+  a.quick_cmd(port(), sc(), name);
+}
+
+/* ════════════════════════════════════════════════════════════
+   POWER
+   ════════════════════════════════════════════════════════════ */
+function togglePower() {
+  const a = api();
+  if (!a) return;
+  a.power_toggle(port(), sc(), state.consoleRunning);
+}
+function onPowerChange(running) {
+  state.consoleRunning = running;
+  const btn = document.getElementById('pwr-btn');
+  const stt = document.getElementById('pwr-state');
+  if (btn) {
+    if (running) {
+      btn.textContent = 'Shut down console';
+      btn.className = 'btn btn-dgr';
+      stt.textContent = 'currently: running';
+    } else {
+      btn.textContent = 'Bring up console';
+      btn.className = 'btn btn-pri';
+      stt.textContent = 'currently: stopped';
+    }
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   HEALTH CHECK
+   ════════════════════════════════════════════════════════════ */
+function doHealthCheck() {
+  const a = api();
+  if (!a) return;
+  document.getElementById('hc-status').textContent = 'running…';
+  document.getElementById('hc-status').className = 'badge warn';
+  ['hc-bsn','hc-version','hc-board','hc-becount','hc-temps','hc-pver'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = '<span class="spinner"></span>';
+    el.className = 'tv dim';
+  });
+  document.getElementById('hc-errlog').textContent = 'Reading…';
+  a.health_check(port(), sc());
+}
+
+function firstLine(s) {
+  if (!s) return '—';
+  const lines = String(s).split('\n').filter(l => l.trim());
+  return lines[0] || s;
+}
+
+function onHealthData(data) {
+  const set = (id, val, cls) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = firstLine(val).slice(0, 60);
+    el.className = 'tv ' + (cls || '');
+    el.title = val || '';
+  };
+  set('hc-bsn',     data.bsn,          'ok');
+  set('hc-version', data.version,      'ok');
+  set('hc-board',   data.boardconfig,  'ok');
+  set('hc-becount', data.becount,      'ok');
+  set('hc-temps',   data.temperatures, 'ok');
+  set('hc-pver',    data.patchver,     'ok');
+
+  // errlog with annotations
+  const errEl = document.getElementById('hc-errlog');
+  errEl.innerHTML = '';
+  const txt = data.errlog || '';
+  let errCount = 0;
+  txt.split('\n').forEach(line => {
+    const div = document.createElement('div');
+    const upper = line.toUpperCase();
+    let isErr = false;
+    let ann = '';
+    for (const code in ERROR_DB) {
+      if (upper.includes(code)) {
+        isErr = true;
+        const [lbl, desc] = ERROR_DB[code];
+        ann = '\n   ' + lbl + ' — ' + desc;
+        errCount++;
+        break;
+      }
+    }
+    div.style.color = isErr ? 'var(--err)' : 'var(--t-3)';
+    div.style.fontWeight = isErr ? '500' : '400';
+    div.textContent = line + ann;
+    errEl.appendChild(div);
+  });
+  const badge = document.getElementById('hc-err-badge');
+  if (errCount > 0) {
+    badge.textContent = errCount + ' error(s) recognised';
+    badge.className = 'badge err';
+  } else {
+    badge.textContent = 'no known errors';
+    badge.className = 'badge ok';
+  }
+
+  // top metrics
+  parseMetrics(data);
+
+  document.getElementById('hc-status').textContent = 'done';
+  document.getElementById('hc-status').className   = 'badge ok';
+  toast('Health check complete', 'ok');
+}
+
+function parseMetrics(data) {
+  // becount: try to parse "Boots: N Errors: M"
+  const bc = (data.becount || '').match(/(\d+)\D+(\d+)/);
+  if (bc) {
+    document.getElementById('m-boots').textContent = bc[1];
+    document.getElementById('m-boots').className = 'v';
+    const errN = parseInt(bc[2]);
+    const eEl = document.getElementById('m-errs');
+    eEl.textContent = bc[2];
+    eEl.className = 'v ' + (errN > 0 ? 'w' : 'ok');
+  }
+  const ts = data.temperatures || '';
+  const cMatch = ts.match(/CELL[:\s]+(\d+)/i) || ts.match(/(\d+)\s*°?C\s*RSX/i);
+  const rMatch = ts.match(/RSX[:\s]+(\d+)/i);
+  if (cMatch) {
+    document.getElementById('m-cell').textContent = cMatch[1] + '°';
+    document.getElementById('m-cell').className   = 'v ' + tempCls(parseInt(cMatch[1]));
+  }
+  if (rMatch) {
+    document.getElementById('m-rsx').textContent = rMatch[1] + '°';
+    document.getElementById('m-rsx').className   = 'v ' + tempCls(parseInt(rMatch[1]));
+  }
+}
+function tempCls(t) { return t < 60 ? 'ok' : (t < 75 ? 'w' : 'e'); }
+
+/* ════════════════════════════════════════════════════════════
+   CXR -> CXRF WORKFLOW
+   ════════════════════════════════════════════════════════════ */
+const CXRF_STEPS = [
+  { id: 'auth',    label: 'Authenticate' },
+  { id: 'verify',  label: 'Verify state' },
+  { id: 'patch',   label: 'Apply patch' },
+  { id: 'hw',      label: 'Hardware step' },
+  { id: 'reauth',  label: 'Re-auth (CXRF)' },
+  { id: 'csum',    label: 'Fix checksum' },
+  { id: 'done',    label: 'Done' },
+];
+
+function buildCXRFSteps() {
+  const sw = document.getElementById('cxrf-stepper');
+  sw.innerHTML = '';
+  CXRF_STEPS.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'step';
+    d.dataset.idx = i;
+    d.innerHTML = `<span class="num"><span>${i + 1}</span></span><span class="lbl">${s.label}</span>`;
+    sw.appendChild(d);
+  });
+}
+
+function renderCXRFStep() {
+  const idx = state.cxrfStep;
+  document.querySelectorAll('#cxrf-stepper .step').forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+    el.classList.toggle('done',   i <  idx);
+  });
+
+  const body = document.getElementById('cxrf-step-body');
+  const id   = CXRF_STEPS[idx].id;
+  let html = '';
+
+  if (id === 'auth') {
+    html = `
+      <div class="card"><div class="card-h"><span class="ttl">Step 1 — Authenticate (CXR mode)</span></div>
+      <div class="card-b col">
+        <div class="desc">Make sure SC type is set to <strong>CXR</strong>, the console has UART connected and is currently in CXR mode (no DIAG to GND).</div>
+        <div class="row">
+          <button class="btn btn-pri" onclick="doAuth()" ${state.isAuth ? 'disabled' : ''}>${state.isAuth ? 'Already authenticated' : 'Authenticate'}</button>
+          ${state.isAuth ? '<button class="btn btn-ok" onclick="cxrfNext()">Continue</button>' : ''}
+        </div>
+      </div></div>`;
+  } else if (id === 'verify') {
+    html = `
+      <div class="card"><div class="card-h"><span class="ttl">Step 2 — Verify EEPROM state</span></div>
+      <div class="card-b col">
+        <div class="desc">Read <code>EEP GET 3961 01</code>. The value at <code>0x3961</code> must be <code>FF</code> for the patch to apply. If it's already <code>00</code>, the console is already patched.</div>
+        <div class="row">
+          <button class="btn btn-pri" onclick="cxrfVerify()">Read 0x3961</button>
+          <span class="muted">Result: <span id="cxrf-verify-res" style="font-family:var(--mono);color:var(--t-1)">—</span></span>
+        </div>
+      </div></div>`;
+  } else if (id === 'patch') {
+    html = `
+      <div class="card"><div class="card-h"><span class="ttl">Step 3 — Apply patch</span><span class="badge warn">writes 0x3961 = 0x00</span></div>
+      <div class="card-b col">
+        <div class="alert al-warn"><div class="ai">!</div><div class="at">This writes <code>EEP SET 3961 01 00</code> and verifies. If the EEPROM checksum gate is enabled, the console will triple-beep on next boot.</div></div>
+        <div class="row">
+          <button class="btn btn-warn" onclick="cxrfPatch()">Apply patch</button>
+        </div>
+      </div></div>`;
+  } else if (id === 'hw') {
+    html = `
+      <div class="card"><div class="card-h"><span class="ttl">Step 4 — Hardware action</span><span class="badge">manual</span></div>
+      <div class="card-b col">
+        <div class="alert al-info"><div class="ai">i</div><div class="at">
+          <strong>1.</strong> Switch off console at the rear power switch.<br>
+          <strong>2.</strong> Connect <code>DIAG</code> testpoint to <code>GND</code>.<br>
+          <strong>3.</strong> Switch console back on. It will boot in CXRF (internal) mode.<br>
+          <strong>4.</strong> Verify that the console powered up (LED, fan).
+        </div></div>
+        <div class="row">
+          <button class="btn btn-ok" onclick="cxrfNext()">I have completed this step</button>
+        </div>
+      </div></div>`;
+  } else if (id === 'reauth') {
+    html = `
+      <div class="card"><div class="card-h"><span class="ttl">Step 5 — Re-authenticate (CXRF mode)</span></div>
+      <div class="card-b col">
+        <div class="desc">Switch the SC type selector at the top to <strong>CXRF</strong> (this changes baud to 115200), then authenticate again.</div>
+        <div class="row">
+          <span>Current SC type: <strong style="color:${sc() === 'CXRF' ? 'var(--ok)' : 'var(--warn)'}">${sc()}</strong></span>
+        </div>
+        <div class="row">
+          <button class="btn btn-pri" onclick="doAuth()">Authenticate (CXRF)</button>
+          ${state.isAuth && sc() === 'CXRF' ? '<button class="btn btn-ok" onclick="cxrfNext()">Continue</button>' : ''}
+        </div>
+      </div></div>`;
+  } else if (id === 'csum') {
+    html = `
+      <div class="card"><div class="card-h"><span class="ttl">Step 6 — Checksum correction</span></div>
+      <div class="card-b col">
+        <div class="desc">Run <code>eepcsum</code>. If a mismatch is detected, the corrections are listed and you can apply each one.</div>
+        <div class="row">
+          <button class="btn btn-pri" onclick="cxrfChecksum()">Run eepcsum</button>
+          <button class="btn" onclick="cxrfNext()">Skip / done</button>
+        </div>
+      </div></div>`;
+  } else if (id === 'done') {
+    html = `
+      <div class="card"><div class="card-h"><span class="ttl">Done</span><span class="badge ok">success</span></div>
+      <div class="card-b col">
+        <div class="alert al-ok"><div class="ai">✓</div><div class="at">CXR -> CXRF modification complete. The console is now in internal mode and the EEPROM checksum has been corrected. You can proceed with RSX patches or other operations.</div></div>
+        <div class="row">
+          <button class="btn" onclick="state.cxrfStep=0;renderCXRFStep()">Restart workflow</button>
+          <button class="btn btn-pri" onclick="switchWorkflow('rsx')">Continue to RSX patch -></button>
+        </div>
+      </div></div>`;
+  }
+
+  body.innerHTML = html;
+}
+
+function cxrfNext() {
+  state.cxrfStep = Math.min(state.cxrfStep + 1, CXRF_STEPS.length - 1);
+  renderCXRFStep();
+}
+
+function cxrfVerify() {
+  const a = api();
+  if (!a) return;
+  termWrite('> EEP GET 3961 01', 'cmd');
+  a.send_command(port(), sc(), 'EEP GET 3961 01');
+  setTimeout(() => {
+    document.getElementById('cxrf-verify-res').textContent = 'Check the terminal output, then continue.';
+    if (state.cxrfStep === 1) {
+      const body = document.getElementById('cxrf-step-body');
+      body.querySelector('.row').insertAdjacentHTML('beforeend', '<button class="btn btn-ok" onclick="cxrfNext()">Continue</button>');
+    }
+  }, 1500);
+}
+
+function cxrfPatch() {
+  const a = api();
+  if (!a) return;
+  a.cxr_to_cxrf(port(), sc());
+}
+
+function onCXRDone() {
+  if (state.currentWf === 'cxrf' && state.cxrfStep === 2) {
+    state.cxrfStep = 3;
+    renderCXRFStep();
+  }
+  toast('Patch verified — proceed to hardware step', 'ok');
+}
+
+function cxrfChecksum() {
+  const a = api();
+  if (!a) return;
+  a.checksum_correction(port(), sc());
+}
+
+/* ════════════════════════════════════════════════════════════
+   RSX PATCH WORKFLOW
+   ════════════════════════════════════════════════════════════ */
+const RSX_STEPS = [
+  { id: 'auth',   label: 'Authenticate' },
+  { id: 'select', label: 'Select chip' },
+  { id: 'confirm',label: 'Confirm' },
+  { id: 'apply',  label: 'Apply patch' },
+  { id: 'done',   label: 'Done' },
+];
+const RSX_STATE = { variant: null }; // '40nm-std', '40nm-ggb', '65nm'
+
+function buildRSXSteps() {
+  const sw = document.getElementById('rsx-stepper');
+  sw.innerHTML = '';
+  RSX_STEPS.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'step';
+    d.innerHTML = `<span class="num"><span>${i + 1}</span></span><span class="lbl">${s.label}</span>`;
+    sw.appendChild(d);
+  });
+}
+
+function renderRSXStep() {
+  const idx = state.rsxStep;
+  document.querySelectorAll('#rsx-stepper .step').forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+    el.classList.toggle('done',   i <  idx);
+  });
+  const body = document.getElementById('rsx-step-body');
+  const id   = RSX_STEPS[idx].id;
+  let html = '';
+
+  if (id === 'auth') {
+    html = `
+      <div class="card"><div class="card-h"><span class="ttl">Step 1 — Authenticate</span></div>
+      <div class="card-b col">
+        <div class="alert al-err"><div class="ai">!</div><div class="at">
+          RSX patches modify Syscon EEPROM. Without authentication this <strong>will brick the console</strong>.
+          Suitable models: CECHA / CECHB / CECHC / CECHE / CECHG / CECHH / CECHJ / CECHK / DECR-1400.
+        </div></div>
+        <div class="row">
+          <button class="btn btn-pri" onclick="doAuth()" ${state.isAuth ? 'disabled' : ''}>${state.isAuth ? 'Authenticated' : 'Authenticate'}</button>
+          ${state.isAuth ? '<button class="btn btn-ok" onclick="rsxNext()">Continue</button>' : ''}
+        </div>
+      </div></div>`;
+  } else if (id === 'select') {
+    html = `
+      <div class="card"><div class="card-h"><span class="ttl">Step 2 — Select RSX chip variant</span></div>
+      <div class="card-b col">
+        <div class="desc">Identify the RSX chip on your board and pick the matching variant.</div>
+        <div class="col" style="gap:6px">
+          <label class="card" style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer">
+            <input type="radio" name="rsx-var" value="65nm" onchange="RSX_STATE.variant=this.value;renderRSXStep()" ${RSX_STATE.variant === '65nm' ? 'checked' : ''}>
+            <div><strong>65nm RSX</strong> — most common 65nm boards · writes 0x3242 / 0x3254 = 0xE8</div>
+          </label>
+          <label class="card" style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer">
+            <input type="radio" name="rsx-var" value="40nm-std" onchange="RSX_STATE.variant=this.value;renderRSXStep()" ${RSX_STATE.variant === '40nm-std' ? 'checked' : ''}>
+            <div><strong>40nm RSX — Standard</strong> (AGB / BGB / CGB / DGB) · writes 0x3254 = 0xEC</div>
+          </label>
+          <label class="card" style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer">
+            <input type="radio" name="rsx-var" value="40nm-ggb" onchange="RSX_STATE.variant=this.value;renderRSXStep()" ${RSX_STATE.variant === '40nm-ggb' ? 'checked' : ''}>
+            <div><strong>40nm RSX — GGB only</strong> · writes 0x3254 = 0xEB</div>
+          </label>
+        </div>
+        <div class="row">
+          <button class="btn btn-pri" onclick="rsxNext()" ${RSX_STATE.variant ? '' : 'disabled'}>Continue</button>
+        </div>
+      </div></div>`;
+  } else if (id === 'confirm') {
+    const cmds = rsxCmdsFor(RSX_STATE.variant);
+    html = `
+      <div class="card"><div class="card-h"><span class="ttl">Step 3 — Review &amp; confirm</span></div>
+      <div class="card-b col">
+        <div class="alert al-warn"><div class="ai">!</div><div class="at">The following commands will be executed in order. Each is verified before the next.</div></div>
+        <div class="code-ref">${cmds.map(c => '<span class="k">' + c + '</span>').join('\n')}</div>
+        <div class="row">
+          <button class="btn btn-warn" onclick="rsxApply()">Apply patch</button>
+          <button class="btn" onclick="state.rsxStep=1;renderRSXStep()">← Change selection</button>
+        </div>
+      </div></div>`;
+  } else if (id === 'apply') {
+    html = `
+      <div class="card"><div class="card-h"><span class="ttl">Step 4 — Patch in progress</span><span class="badge warn">running</span></div>
+      <div class="card-b col">
+        <div class="row"><span class="spinner"></span><span>Watch the terminal for progress. Each command is verified.</span></div>
+      </div></div>`;
+  } else if (id === 'done') {
+    html = `
+      <div class="card"><div class="card-h"><span class="ttl">Done</span><span class="badge ok">success</span></div>
+      <div class="card-b col">
+        <div class="alert al-ok"><div class="ai">✓</div><div class="at">RSX patch applied successfully. Power-cycle the console and test under load.</div></div>
+        <div class="row">
+          <button class="btn" onclick="RSX_STATE.variant=null;state.rsxStep=0;renderRSXStep()">Restart workflow</button>
+        </div>
+      </div></div>`;
+  }
+  body.innerHTML = html;
+}
+
+function rsxCmdsFor(v) {
+  if (v === '65nm')     return ['w 3242 03 A2 03 B0 07 71', 'w 3254 21 E8', 'w 348B 88', 'w 34AF 88'];
+  if (v === '40nm-std') return ['w 3242 03 61 82 80 01 91', 'w 3254 21 EC', 'w 348B 8B', 'w 34AF 8B'];
+  if (v === '40nm-ggb') return ['w 3242 03 61 82 80 01 91', 'w 3254 21 EB', 'w 348B 8B', 'w 34AF 8B'];
+  return [];
+}
+
+function rsxNext() {
+  state.rsxStep = Math.min(state.rsxStep + 1, RSX_STEPS.length - 1);
+  renderRSXStep();
+}
+
+function rsxApply() {
+  const a = api();
+  if (!a) return;
+  state.rsxStep = 3;
+  renderRSXStep();
+  const [nm, model] = RSX_STATE.variant.startsWith('40nm')
+    ? ['40nm', RSX_STATE.variant === '40nm-ggb' ? 'ggb' : 'standard']
+    : ['65nm', 'standard'];
+  a.patch_rsx(port(), sc(), nm, model);
+}
+
+function onPatchDone(ok, msg) {
+  if (state.currentWf === 'rsx') {
+    if (ok) {
+      state.rsxStep = 4;
+      renderRSXStep();
+    } else {
+      // mark current step as error
+      const stepEl = document.querySelectorAll('#rsx-stepper .step')[state.rsxStep];
+      if (stepEl) stepEl.classList.add('error');
+    }
+  }
+  toast(msg, ok ? 'ok' : 'err');
+}
+
+/* ════════════════════════════════════════════════════════════
+   EEPROM INSPECTOR
+   ════════════════════════════════════════════════════════════ */
+function doMemRead() {
+  const a = api();
+  if (!a) return;
+  const addr = parseInt(document.getElementById('eep-addr').value, 16);
+  const len  = parseInt(document.getElementById('eep-len').value, 16);
+  if (isNaN(addr) || isNaN(len)) return toast('Invalid address or length', 'err');
+  state.hexAddr = addr;
+  document.getElementById('hex-view').innerHTML = '<div class="muted" style="padding:14px;text-align:center;font-family:var(--ui)"><span class="spinner"></span> Reading…</div>';
+  a.read_memory(port(), sc(), addr.toString(16).toUpperCase(), len.toString(16).toUpperCase());
+}
+
+function onMemoryData(addr, bytes) {
+  state.hexAddr  = parseInt(addr, 16);
+  state.hexBytes = bytes || [];
+  state.hexSel   = -1;
+  renderHex();
+}
+
+function renderHex() {
+  const view = document.getElementById('hex-view');
+  if (!state.hexBytes.length) {
+    view.innerHTML = '<div class="muted" style="padding:14px;text-align:center;font-family:var(--ui)">No data.</div>';
+    return;
+  }
+  let html = '<table><thead><tr><th>Address</th>';
+  for (let i = 0; i < 16; i++) html += '<th>' + i.toString(16).toUpperCase().padStart(2, '0') + '</th>';
+  html += '<th>ASCII</th></tr></thead><tbody>';
+
+  for (let row = 0; row < state.hexBytes.length; row += 16) {
+    const rowAddr = state.hexAddr + row;
+    html += '<tr><td class="addr">0x' + rowAddr.toString(16).toUpperCase().padStart(4, '0') + '</td>';
+    let ascii = '';
+    for (let col = 0; col < 16; col++) {
+      const i = row + col;
+      if (i < state.hexBytes.length) {
+        const v = state.hexBytes[i];
+        const cls = (v === 0 ? 'zero' : '') + (state.hexSel === i ? ' sel' : '');
+        html += `<td class="byte ${cls}" data-i="${i}" onclick="hexSelect(${i})">${v.toString(16).toUpperCase().padStart(2, '0')}</td>`;
+        ascii += (v >= 0x20 && v < 0x7f) ? String.fromCharCode(v) : '·';
+      } else {
+        html += '<td class="byte" style="color:var(--t-5)">--</td>';
+        ascii += ' ';
+      }
+    }
+    html += '<td class="ascii">' + ascii.replace(/</g, '&lt;') + '</td></tr>';
+  }
+  html += '</tbody></table>';
+  view.innerHTML = html;
+}
+
+function hexSelect(i) {
+  state.hexSel = i;
+  renderHex();
+  const addr = (state.hexAddr + i).toString(16).toUpperCase().padStart(4, '0');
+  const val  = state.hexBytes[i].toString(16).toUpperCase().padStart(2, '0');
+  document.getElementById('hex-edit-row').style.display = 'flex';
+  document.getElementById('hex-sel-addr').textContent = '0x' + addr;
+  document.getElementById('hex-sel-val').textContent  = '0x' + val;
+  document.getElementById('hex-new-val').value = val;
+}
+
+function doMemWrite() {
+  if (state.hexSel < 0) return;
+  const addr = (state.hexAddr + state.hexSel).toString(16).toUpperCase().padStart(4, '0');
+  const val  = document.getElementById('hex-new-val').value.trim().toUpperCase();
+  if (!/^[0-9A-F]{1,2}$/.test(val)) return toast('Enter a hex byte (00–FF)', 'warn');
+  if (!confirm('Write 0x' + val.padStart(2, '0') + ' to 0x' + addr + ' ?')) return;
+  const cmd = sc() === 'CXRF' ? 'w ' + addr + ' ' + val : 'EEP SET ' + addr + ' 01 ' + val;
+  api().send_command(port(), sc(), cmd);
+  setTimeout(doMemRead, 800);
+}
+
+/* ════════════════════════════════════════════════════════════
+   FAN
+   ════════════════════════════════════════════════════════════ */
+/* Fan data model — two separate 10-phase tables (CELL / RSX) + T-Shutdown */
+const FAN_PRESETS = {
+  stock: {
+    cell: [
+      {tmin:0, tmax:50, speed:30 }, {tmin:48,tmax:60, speed:50 },
+      {tmin:58,tmax:67, speed:70 }, {tmin:65,tmax:72, speed:90 },
+      {tmin:70,tmax:77, speed:115}, {tmin:75,tmax:82, speed:140},
+      {tmin:80,tmax:85, speed:175}, {tmin:83,tmax:87, speed:210},
+      {tmin:85,tmax:90, speed:240}, {tmin:88,tmax:95, speed:255},
+    ],
+    rsx: [
+      {tmin:0, tmax:50, speed:30 }, {tmin:48,tmax:60, speed:50 },
+      {tmin:58,tmax:67, speed:70 }, {tmin:65,tmax:72, speed:90 },
+      {tmin:70,tmax:77, speed:115}, {tmin:75,tmax:82, speed:140},
+      {tmin:80,tmax:85, speed:175}, {tmin:83,tmax:87, speed:210},
+      {tmin:85,tmax:90, speed:240}, {tmin:88,tmax:95, speed:255},
+    ],
+    tshutdown: 85,
+  },
+  quiet: {
+    cell: [
+      {tmin:0, tmax:55, speed:25 }, {tmin:53,tmax:65, speed:40 },
+      {tmin:63,tmax:72, speed:60 }, {tmin:70,tmax:77, speed:80 },
+      {tmin:75,tmax:82, speed:100}, {tmin:80,tmax:85, speed:130},
+      {tmin:83,tmax:88, speed:170}, {tmin:86,tmax:90, speed:210},
+      {tmin:88,tmax:93, speed:245}, {tmin:91,tmax:96, speed:255},
+    ],
+    rsx: [
+      {tmin:0, tmax:55, speed:25 }, {tmin:53,tmax:65, speed:40 },
+      {tmin:63,tmax:72, speed:60 }, {tmin:70,tmax:77, speed:80 },
+      {tmin:75,tmax:82, speed:100}, {tmin:80,tmax:85, speed:130},
+      {tmin:83,tmax:88, speed:170}, {tmin:86,tmax:90, speed:210},
+      {tmin:88,tmax:93, speed:245}, {tmin:91,tmax:96, speed:255},
+    ],
+    tshutdown: 95,
+  },
+  perf: {
+    cell: [
+      {tmin:0, tmax:40, speed:50 }, {tmin:38,tmax:50, speed:80 },
+      {tmin:48,tmax:58, speed:110}, {tmin:55,tmax:65, speed:140},
+      {tmin:62,tmax:70, speed:170}, {tmin:68,tmax:75, speed:200},
+      {tmin:73,tmax:78, speed:225}, {tmin:76,tmax:81, speed:245},
+      {tmin:79,tmax:84, speed:255}, {tmin:82,tmax:88, speed:255},
+    ],
+    rsx: [
+      {tmin:0, tmax:42, speed:55 }, {tmin:40,tmax:52, speed:85 },
+      {tmin:50,tmax:60, speed:115}, {tmin:57,tmax:67, speed:145},
+      {tmin:64,tmax:72, speed:175}, {tmin:70,tmax:77, speed:205},
+      {tmin:75,tmax:80, speed:230}, {tmin:78,tmax:83, speed:250},
+      {tmin:81,tmax:86, speed:255}, {tmin:84,tmax:90, speed:255},
+    ],
+    tshutdown: 85,
+  },
+  aggr: {
+    cell: [
+      {tmin:0, tmax:35, speed:80 }, {tmin:33,tmax:43, speed:120},
+      {tmin:41,tmax:50, speed:160}, {tmin:48,tmax:57, speed:195},
+      {tmin:55,tmax:62, speed:220}, {tmin:60,tmax:67, speed:240},
+      {tmin:65,tmax:72, speed:250}, {tmin:70,tmax:75, speed:255},
+      {tmin:73,tmax:78, speed:255}, {tmin:76,tmax:82, speed:255},
+    ],
+    rsx: [
+      {tmin:0, tmax:35, speed:80 }, {tmin:33,tmax:43, speed:120},
+      {tmin:41,tmax:50, speed:160}, {tmin:48,tmax:57, speed:195},
+      {tmin:55,tmax:62, speed:220}, {tmin:60,tmax:67, speed:240},
+      {tmin:65,tmax:72, speed:250}, {tmin:70,tmax:75, speed:255},
+      {tmin:73,tmax:78, speed:255}, {tmin:76,tmax:82, speed:255},
+    ],
+    tshutdown: 80,
+  },
+};
+
+/* curve geometry — viewBox is 700x320 */
+const FC_GEO = {
+  W: 700, H: 320,
+  PL: 50, PR: 14, PT: 14, PB: 36,
+  TMIN: 20, TMAX: 100,
+  SMIN: 0,  SMAX: 255,
+};
+
+let FAN_DATA   = JSON.parse(JSON.stringify(FAN_PRESETS.stock));
+let FAN_ACTIVE = 'cell';
+let FAN_DIRTY  = false;
+
+function fcX(temp) {
+  const g = FC_GEO;
+  const t = Math.max(g.TMIN, Math.min(g.TMAX, temp));
+  return g.PL + (t - g.TMIN) / (g.TMAX - g.TMIN) * (g.W - g.PL - g.PR);
+}
+function fcY(speed) {
+  const g = FC_GEO;
+  const s = Math.max(g.SMIN, Math.min(g.SMAX, speed));
+  return g.PT + (g.SMAX - s) / (g.SMAX - g.SMIN) * (g.H - g.PT - g.PB);
+}
+function fcSpeedFromY(y) {
+  const g = FC_GEO;
+  let s = g.SMAX - (y - g.PT) / (g.H - g.PT - g.PB) * (g.SMAX - g.SMIN);
+  return Math.max(0, Math.min(255, Math.round(s)));
+}
+function fcTempFromX(x) {
+  const g = FC_GEO;
+  let t = g.TMIN + (x - g.PL) / (g.W - g.PL - g.PR) * (g.TMAX - g.TMIN);
+  return Math.max(0, Math.min(110, Math.round(t)));
+}
+
+function buildFan(data) {
+  if (data) FAN_DATA = data;
+  if (!FAN_DATA.cell || FAN_DATA.cell.length !== 10) FAN_DATA = JSON.parse(JSON.stringify(FAN_PRESETS.stock));
+  document.getElementById('fan-tshut').value = FAN_DATA.tshutdown;
+  renderPhaseTable();
+  renderFanCurve();
+}
+
+function setFanActive(which) {
+  FAN_ACTIVE = which;
+  document.getElementById('tab-cell').classList.toggle('on', which === 'cell');
+  document.getElementById('tab-rsx').classList.toggle('on',  which === 'rsx');
+  document.getElementById('leg-cell').classList.toggle('on', which === 'cell');
+  document.getElementById('leg-rsx').classList.toggle('on',  which === 'rsx');
+  renderPhaseTable();
+  renderFanCurve();
+}
+
+function setFanDirty(d) {
+  FAN_DIRTY = d;
+  const b = document.getElementById('fan-status');
+  if (!b) return;
+  if (d) { b.className = 'badge warn'; b.textContent = 'unsaved changes'; }
+  else   { b.className = 'badge ok';   b.textContent = 'in sync'; }
+}
+
+function renderPhaseTable() {
+  const list = document.getElementById('phase-list');
+  if (!list) return;
+  list.classList.toggle('rsx-active', FAN_ACTIVE === 'rsx');
+
+  const phases = FAN_DATA[FAN_ACTIVE];
+  const TMAX_AXIS = 110; // visualisation upper bound
+
+  let html = `
+    <div class="ph-head">
+      <div>Phase</div>
+      <div>Range  (TMin -> TMax)</div>
+      <div>Speed  (0 - 255)</div>
+    </div>
+  `;
+
+  phases.forEach((ph, i) => {
+    const role = i === 0 ? 'idle' : (i === phases.length - 1 ? 'max' : '');
+    const pct = Math.round(ph.speed / 255 * 100);
+    const tminPos = Math.max(0, Math.min(100, ph.tmin / TMAX_AXIS * 100));
+    const tmaxPos = Math.max(0, Math.min(100, ph.tmax / TMAX_AXIS * 100));
+    const segW    = Math.max(0, tmaxPos - tminPos);
+
+    html += `
+      <div class="ph-row" data-i="${i}">
+        <div class="ph-pill-wrap">
+          <span class="ph-pill"><span class="dot"></span>p${i}</span>
+          ${role ? `<span class="ph-role">${role}</span>` : ''}
+        </div>
+        <div class="ph-range">
+          <input data-k="tmin" type="number" min="0" max="110" value="${ph.tmin}">
+          <span class="arrow">to</span>
+          <input data-k="tmax" type="number" min="0" max="110" value="${ph.tmax}">
+          <div class="ph-rangebar"><div class="seg" style="left:${tminPos}%;width:${segW}%"></div></div>
+        </div>
+        <div class="ph-speed">
+          <input data-k="speed" type="number" min="0" max="255" value="${ph.speed}">
+          <div class="ph-speedbar"><div class="fill" style="width:${pct}%"></div><div class="ticks"></div></div>
+          <span class="ph-pct">${pct}%</span>
+        </div>
+      </div>
+    `;
+  });
+  list.innerHTML = html;
+
+  // Wire input events (live update without losing focus)
+  list.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const row = inp.closest('.ph-row');
+      const i = parseInt(row.dataset.i);
+      const k = inp.dataset.k;
+      let v = parseInt(inp.value);
+      if (isNaN(v)) v = 0;
+      const max = (k === 'speed') ? 255 : 110;
+      v = Math.max(0, Math.min(max, v));
+      FAN_DATA[FAN_ACTIVE][i][k] = v;
+
+      const ph = FAN_DATA[FAN_ACTIVE][i];
+      if (k === 'speed') {
+        const pct = Math.round(v / 255 * 100);
+        row.querySelector('.ph-speedbar .fill').style.width = pct + '%';
+        row.querySelector('.ph-pct').textContent = pct + '%';
+      } else {
+        const tminPos = Math.max(0, Math.min(100, ph.tmin / TMAX_AXIS * 100));
+        const tmaxPos = Math.max(0, Math.min(100, ph.tmax / TMAX_AXIS * 100));
+        const seg = row.querySelector('.ph-rangebar .seg');
+        seg.style.left  = tminPos + '%';
+        seg.style.width = Math.max(0, tmaxPos - tminPos) + '%';
+      }
+      setFanDirty(true);
+      renderFanCurve();
+    });
+    inp.addEventListener('focus', () => inp.closest('.ph-row').classList.add('highlight'));
+    inp.addEventListener('blur',  () => inp.closest('.ph-row').classList.remove('highlight'));
+  });
+}
+
+function renderFanCurve() {
+  const g = FC_GEO;
+  const grid  = document.getElementById('fc-grid');
+  const zones = document.getElementById('fc-zones');
+  const axes  = document.getElementById('fc-axes');
+
+  zones.innerHTML = `
+    <rect class="fc-zone-l" x="${g.PL}" y="${fcY(102)}" width="${g.W - g.PL - g.PR}" height="${fcY(0)   - fcY(102)}"/>
+    <rect class="fc-zone-m" x="${g.PL}" y="${fcY(190)}" width="${g.W - g.PL - g.PR}" height="${fcY(102) - fcY(190)}"/>
+    <rect class="fc-zone-h" x="${g.PL}" y="${fcY(255)}" width="${g.W - g.PL - g.PR}" height="${fcY(190) - fcY(255)}"/>
+  `;
+
+  let gridHtml = '';
+  for (let t = 30; t <= 95; t += 10) {
+    const x = fcX(t);
+    gridHtml += `<line class="fc-grid-line ${t % 20 === 0 ? 'maj' : ''}" x1="${x}" y1="${g.PT}" x2="${x}" y2="${g.H - g.PB}"/>`;
+  }
+  for (let s = 0; s <= 255; s += 51) {
+    const y = fcY(s);
+    gridHtml += `<line class="fc-grid-line maj" x1="${g.PL}" y1="${y}" x2="${g.W - g.PR}" y2="${y}"/>`;
+  }
+  grid.innerHTML = gridHtml;
+
+  let axisHtml = '';
+  for (let s = 0; s <= 255; s += 51) {
+    axisHtml += `<text class="fc-axis-label" x="${g.PL - 8}" y="${fcY(s) + 3}" text-anchor="end">${Math.round(s/255*100)}%</text>`;
+  }
+  for (let t = 30; t <= 95; t += 10) {
+    axisHtml += `<text class="fc-axis-label" x="${fcX(t)}" y="${g.H - g.PB + 16}" text-anchor="middle">${t}°</text>`;
+  }
+  axes.innerHTML = axisHtml;
+
+  drawTableCurve('cell');
+  drawTableCurve('rsx');
+
+  // T-shutdown vertical line
+  const tsX = fcX(FAN_DATA.tshutdown);
+  const tsLine = document.getElementById('fc-tshut-line');
+  tsLine.setAttribute('x1', tsX); tsLine.setAttribute('y1', g.PT);
+  tsLine.setAttribute('x2', tsX); tsLine.setAttribute('y2', g.H - g.PB);
+  const tsLbl = document.getElementById('fc-tshut-label');
+  tsLbl.setAttribute('x', tsX + 4);
+  tsLbl.setAttribute('y', g.PT + 12);
+  tsLbl.textContent = 'shutdown ' + FAN_DATA.tshutdown + '°';
+}
+
+function drawTableCurve(which) {
+  const g = FC_GEO;
+  const phases = FAN_DATA[which];
+  const lineEl = document.getElementById('fc-line-' + which);
+  const areaEl = document.getElementById('fc-area-' + which);
+  const ptsEl  = document.getElementById('fc-points-' + which);
+  const dim    = (which !== FAN_ACTIVE);
+
+  const pts = phases.map(ph => [fcX(ph.tmax), fcY(ph.speed)]);
+  const linePath = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  lineEl.setAttribute('d', linePath);
+  lineEl.classList.toggle('dim', dim);
+
+  const areaPath = linePath + ` L ${pts[pts.length-1][0].toFixed(1)} ${fcY(0)} L ${pts[0][0].toFixed(1)} ${fcY(0)} Z`;
+  areaEl.setAttribute('d', areaPath);
+  areaEl.classList.toggle('dim', dim);
+
+  let html = '';
+  pts.forEach((p, i) => {
+    const cls = (which === 'rsx' ? 'rsx ' : '') + (dim ? 'dim' : '');
+    html += `<circle class="fc-point ${cls}" data-i="${i}" data-which="${which}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="5"/>`;
+  });
+  ptsEl.innerHTML = html;
+
+  if (!dim) {
+    ptsEl.querySelectorAll('.fc-point').forEach(c => {
+      c.addEventListener('mousedown', startDrag);
+      c.addEventListener('mouseenter', () => showTooltip(parseInt(c.dataset.i), c, which));
+      c.addEventListener('mouseleave', hideTooltip);
+    });
+  }
+}
+
+function startDrag(e) {
+  e.preventDefault();
+  const circle = e.currentTarget;
+  const i      = parseInt(circle.dataset.i);
+  const which  = circle.dataset.which;
+  const phases = FAN_DATA[which];
+  circle.classList.add('dragging');
+
+  const svg = document.getElementById('fc-svg');
+
+  const move = (ev) => {
+    const pt = svg.createSVGPoint();
+    pt.x = ev.clientX; pt.y = ev.clientY;
+    const local = pt.matrixTransform(svg.getScreenCTM().inverse());
+    let speedV = fcSpeedFromY(local.y);
+    let tmaxV  = fcTempFromX(local.x);
+
+    // monotonic
+    if (i > 0)               speedV = Math.max(speedV, phases[i-1].speed);
+    if (i < phases.length-1) speedV = Math.min(speedV, phases[i+1].speed);
+    if (i > 0)               tmaxV  = Math.max(tmaxV,  phases[i-1].tmax + 1);
+    if (i < phases.length-1) tmaxV  = Math.min(tmaxV,  phases[i+1].tmax - 1);
+
+    phases[i].speed = speedV;
+    phases[i].tmax  = tmaxV;
+
+    setFanDirty(true);
+    renderPhaseTable();
+    renderFanCurve();
+    const newC = document.querySelector(`#fc-points-${which} .fc-point[data-i="${i}"]`);
+    if (newC) {
+      newC.classList.add('dragging');
+      showTooltip(i, newC, which);
+    }
+  };
+  const up = () => {
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup',   up);
+    document.querySelectorAll('.fc-point').forEach(c => c.classList.remove('dragging'));
+    hideTooltip();
+  };
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup',   up);
+}
+
+function showTooltip(i, circleEl, which) {
+  if (!circleEl) return;
+  const tip = document.getElementById('fc-tip');
+  const wrap = document.getElementById('fancurve');
+  const wrapRect = wrap.getBoundingClientRect();
+  const cRect    = circleEl.getBoundingClientRect();
+  const ph = FAN_DATA[which][i];
+  const pct = Math.round(ph.speed/255*100);
+  const colour = which === 'rsx' ? 'var(--warn)' : 'var(--ax-h)';
+  tip.innerHTML = `<span style="color:${colour}">${which.toUpperCase()} p${i}</span> · ${ph.tmax}° -> <span class="ax-h">${ph.speed}</span> (${pct}%)`;
+  tip.style.left = (cRect.left + cRect.width / 2 - wrapRect.left) + 'px';
+  tip.style.top  = (cRect.top  - wrapRect.top) + 'px';
+  tip.classList.add('on');
+}
+function hideTooltip() { document.getElementById('fc-tip').classList.remove('on'); }
+
+function onTShutChange() {
+  let v = parseInt(document.getElementById('fan-tshut').value);
+  if (isNaN(v)) v = 85;
+  FAN_DATA.tshutdown = Math.max(50, Math.min(110, v));
+  setFanDirty(true);
+  renderFanCurve();
+}
+
+function setFanPreset(el, k) {
+  document.querySelectorAll('.preset').forEach(p => p.classList.remove('on'));
+  el.classList.add('on');
+  FAN_DATA = JSON.parse(JSON.stringify(FAN_PRESETS[k]));
+  buildFan(FAN_DATA);
+  setFanDirty(true);
+  termWrite('Fan preset: ' + el.textContent, 'ok');
+}
+
+function resetFan() {
+  FAN_DATA = JSON.parse(JSON.stringify(FAN_PRESETS.stock));
+  buildFan(FAN_DATA);
+  setFanDirty(true);
+}
+
+function doFanReadFull()  { api() && api().fan_read_full(port(), sc()); }
+function doFanWriteFull() {
+  if (!confirm('Write CELL + RSX fan tables and T-Shutdown to console?')) return;
+  api() && api().fan_write_full(port(), sc(), FAN_DATA.cell, FAN_DATA.rsx, FAN_DATA.tshutdown);
+}
+
+/* Python callbacks */
+function onFanTablesData(data) {
+  if (data && data.cell && data.cell.length === 10 && data.rsx && data.rsx.length === 10) {
+    FAN_DATA = data;
+    buildFan(FAN_DATA);
+    setFanDirty(false);
+    toast('Fan tables loaded from console', 'ok');
+  } else {
+    toast('Could not parse fan tables — see terminal', 'warn');
+  }
+}
+function onFanWriteDone(ok) {
+  if (ok) { setFanDirty(false); toast('Fan tables saved to console', 'ok'); }
+  else    { toast('Fan write failed — see terminal', 'err'); }
+}
+
+/* legacy stubs (unused by new UI) */
+function onFanData(raw) { termWrite('Fan table raw: ' + raw, 'ok'); }
+function getFanSpeeds() { return FAN_DATA[FAN_ACTIVE].map(p => p.speed); }
+function doFanRead()  { doFanReadFull(); }
+function doFanWrite() { doFanWriteFull(); }
+
+/* ════════════════════════════════════════════════════════════
+   CHECKSUM GATE
+   ════════════════════════════════════════════════════════════ */
+function doGateRead() { api() && api().send_command(port(), sc(), 'r 3292'); }
+function doGate(disable) {
+  if (!confirm((disable ? 'Disable' : 'Enable') + ' Checksum Gate (write 0x' + (disable ? 'FF' : '00') + ' to 0x3292)?')) return;
+  api() && api().toggle_checksum_gate(port(), sc(), disable);
+}
+
+/* ════════════════════════════════════════════════════════════
+   CHECKSUM CORRECTION (modal)
+   ════════════════════════════════════════════════════════════ */
+function onChecksumData(corrections) {
+  const body = '<p>Detected ' + corrections.length + ' correction(s):</p>' +
+    corrections.map((c, i) =>
+      `<div class="cs-item">
+         <span class="cs-a">0x${c.addr}</span>
+         <span class="cs-v">-> 0x${c.val}</span>
+         <span class="cs-c">${c.cmd}</span>
+         <button class="btn btn-sm btn-warn" onclick="applyCSFix(${i}, this)">Apply</button>
+       </div>`
+    ).join('');
+  showModal('Checksum corrections', body, [{ label: 'Close', cls: '', click: closeModal }]);
+  window._cs_corr = corrections;
+}
+function applyCSFix(i, btn) {
+  const c = window._cs_corr[i];
+  if (api()) api().apply_checksum_fix(port(), sc(), c.cmd);
+  btn.disabled = true; btn.textContent = 'Applied';
+}
+function onChecksumOK() { toast('Checksum OK — no corrections needed', 'ok'); }
+
+/* ════════════════════════════════════════════════════════════
+   TERMINAL
+   ════════════════════════════════════════════════════════════ */
+function setupTerm() {
+  const inp = document.getElementById('term-cmd');
+  const ac  = document.getElementById('term-ac');
+  let acIdx = -1;
+  let acItems = [];
+
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      if (acIdx >= 0 && acItems.length) {
+        inp.value = acItems[acIdx];
+        hideAC();
+        return e.preventDefault();
+      }
+      const v = inp.value.trim();
+      if (!v) return;
+      state.cmdHistory.push(v);
+      state.cmdHistoryIdx = state.cmdHistory.length;
+      state.lastCmd = v;
+      api() && api().send_command(port(), sc(), v);
+      inp.value = '';
+      hideAC();
+    } else if (e.key === 'ArrowUp') {
+      if (!ac.classList.contains('hidden')) {
+        acIdx = Math.max(0, acIdx - 1);
+        renderAC(acItems, acIdx);
+        return e.preventDefault();
+      }
+      if (state.cmdHistoryIdx > 0) {
+        state.cmdHistoryIdx--;
+        inp.value = state.cmdHistory[state.cmdHistoryIdx] || '';
+      }
+      e.preventDefault();
+    } else if (e.key === 'ArrowDown') {
+      if (!ac.classList.contains('hidden')) {
+        acIdx = Math.min(acItems.length - 1, acIdx + 1);
+        renderAC(acItems, acIdx);
+        return e.preventDefault();
+      }
+      if (state.cmdHistoryIdx < state.cmdHistory.length - 1) {
+        state.cmdHistoryIdx++;
+        inp.value = state.cmdHistory[state.cmdHistoryIdx] || '';
+      } else {
+        state.cmdHistoryIdx = state.cmdHistory.length;
+        inp.value = '';
+      }
+      e.preventDefault();
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const m = matchCmds(inp.value);
+      if (m.length === 1) { inp.value = m[0][0]; hideAC(); }
+      else if (m.length > 1) { showAC(m); acIdx = 0; renderAC(m.map(x => x[0]), 0); }
+    } else if (e.key === 'Escape') {
+      hideAC();
+    }
+  });
+
+  inp.addEventListener('input', () => {
+    const v = inp.value;
+    if (!v) return hideAC();
+    const m = matchCmds(v);
+    if (m.length && v.length >= 1) { showAC(m); acItems = m.map(x => x[0]); acIdx = -1; }
+    else hideAC();
+  });
+
+  function matchCmds(prefix) {
+    const p = prefix.toLowerCase();
+    return CMD_DICT.filter(([k]) => k.toLowerCase().startsWith(p)).slice(0, 7);
+  }
+  function showAC(items) {
+    ac.classList.remove('hidden');
+    ac.innerHTML = items.map(([k, d]) => `<div class="ac-item"><span class="ac-cmd">${k}</span><span class="ac-desc">${d}</span></div>`).join('');
+    ac.querySelectorAll('.ac-item').forEach((el, i) => {
+      el.addEventListener('click', () => { inp.value = items[i][0]; hideAC(); inp.focus(); });
+    });
+    acItems = items.map(x => x[0]);
+  }
+  function renderAC(items, idx) {
+    ac.querySelectorAll('.ac-item').forEach((el, i) => el.classList.toggle('sel', i === idx));
+  }
+  function hideAC() { ac.classList.add('hidden'); acIdx = -1; }
+  window.hideAC = hideAC;
+}
+
+function termWrite(text, type) {
+  appendLog(text, type);
+}
+
+/* called from Python via evaluate_js */
+function appendLog(text, type) {
+  const el = document.getElementById('term-out');
+  if (!el) return;
+  const ts = new Date().toLocaleTimeString('de', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  String(text).split('\n').forEach((line, i) => {
+    const div = document.createElement('div');
+    const isAnnotation = line.startsWith('  >');
+    const cls = isAnnotation ? 'l-ann' : ('l-' + (type || 'dim'));
+    div.className = 'line ' + cls;
+    const isCmd = (type === 'cmd');
+    const pf = isCmd ? '>' : (type === 'err' ? '!' : (type === 'warn' ? '*' : ' '));
+    div.innerHTML =
+      '<span class="ts">' + (i === 0 ? ts : '') + '</span>' +
+      '<span class="pf ' + (isCmd ? 'in' : 'out') + '">' + pf + '</span>' +
+      '<span class="tx"></span>';
+    div.querySelector('.tx').textContent = line;
+    el.appendChild(div);
+  });
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearTerm() {
+  document.getElementById('term-out').innerHTML = '';
+  termWrite('— cleared —', 'dim');
+}
+
+function setTermMode(mode) {
+  const el = document.getElementById('term-mode');
+  el.className = 'badge' + (mode === 'ready' ? ' live' : '');
+  el.textContent = mode;
+}
+
+/* ════════════════════════════════════════════════════════════
+   KEYBOARD SHORTCUTS
+   ════════════════════════════════════════════════════════════ */
+function setupKeyboard() {
+  // F1-F11 -> workflows
+  const WF_FKEYS = ['connect','cxrf','rsx','health','eeprom','direct','fan','undervolt','gate','conn','errors','settings'];
+
+  document.addEventListener('keydown', e => {
+    const inField = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
+
+    // F1 .. F11 -> workflow switching (single-key, no modifier)
+    const fmatch = e.key.match(/^F(\d{1,2})$/);
+    if (fmatch && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+      const idx = parseInt(fmatch[1]) - 1;
+      if (idx >= 0 && idx < WF_FKEYS.length) {
+        e.preventDefault();
+        switchWorkflow(WF_FKEYS[idx]);
+        return;
+      }
+    }
+
+    // Ctrl + 1..9 -> first 9 workflows (alternative)
+    if (e.ctrlKey && !e.shiftKey && !e.altKey && /^[1-9]$/.test(e.key)) {
+      e.preventDefault();
+      switchWorkflow(WF_FKEYS[parseInt(e.key) - 1]);
+      return;
+    }
+
+    if (e.key === '/' && !inField) {
+      e.preventDefault();
+      document.getElementById('term-cmd').focus();
+      return;
+    }
+    if (e.ctrlKey && e.key === 'l') {
+      e.preventDefault();
+      clearTerm();
+      return;
+    }
+    if (e.ctrlKey && e.key === 'r' && !e.shiftKey) {
+      e.preventDefault();
+      if (state.lastCmd && api()) {
+        termWrite('(re-run) ' + state.lastCmd, 'dim');
+        api().send_command(port(), sc(), state.lastCmd);
+      }
+      return;
+    }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'R' || e.key === 'r')) {
+      // refresh ports — used to be F5
+      e.preventDefault();
+      refreshPorts();
+      return;
+    }
+    if (e.ctrlKey && e.key === 'a' && !inField) {
+      e.preventDefault();
+      doAuth();
+      return;
+    }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'E' || e.key === 'e')) {
+      // quick errlog — used to be F2
+      e.preventDefault();
+      runQuick('errlog');
+      return;
+    }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'H' || e.key === 'h')) {
+      // quick health check — used to be F3
+      e.preventDefault();
+      switchWorkflow('health');
+      doHealthCheck();
+      return;
+    }
+    if (e.key === 'Escape') { closeModal(); return; }
+  });
+}
+
+/* ════════════════════════════════════════════════════════════
+   MODALS
+   ════════════════════════════════════════════════════════════ */
+function showModal(title, body, footerBtns) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = body;
+  const f = document.getElementById('modal-footer');
+  f.innerHTML = '';
+  (footerBtns || [{ label: 'Close', cls: '', click: closeModal }]).forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'btn ' + (b.cls || '');
+    btn.textContent = b.label;
+    btn.onclick = b.click;
+    f.appendChild(btn);
+  });
+  document.getElementById('modal-bg').classList.remove('hidden');
+}
+function closeModal() { document.getElementById('modal-bg').classList.add('hidden'); }
+
+function showShortcuts() { switchWorkflow('settings'); }
+
+/* ════════════════════════════════════════════════════════════
+   TOASTS
+   ════════════════════════════════════════════════════════════ */
+function toast(msg, type) {
+  const c = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type || '');
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; }, 3500);
+  setTimeout(() => t.remove(), 3900);
+}
+
+/* ════════════════════════════════════════════════════════════
+   SETTINGS — theme, font, density, persistence
+   ════════════════════════════════════════════════════════════ */
+const THEMES = {
+  blue:   { ax:'#2c8fff', axh:'#4ca0ff', axd:'#1d6ad9' },
+  ps:     { ax:'#003791', axh:'#1a5fc7', axd:'#002a6e' },
+  red:    { ax:'#cc0000', axh:'#e60026', axd:'#990000' },
+  amber:  { ax:'#fbbf24', axh:'#fcd34d', axd:'#b08815' },
+  green:  { ax:'#22c55e', axh:'#4ade80', axd:'#166534' },
+  purple: { ax:'#a855f7', axh:'#c084fc', axd:'#6b21a8' },
+  cyan:   { ax:'#06b6d4', axh:'#22d3ee', axd:'#0e7490' },
+};
+
+const settings = {
+  theme:      'blue',
+  accent:     '#2c8fff',
+  font:       'default',
+  density:    'normal',
+  lightMode:  false,
+  sandbox:    false,
+  livemon:    false,
+  autoauth:   true,
+  guide_seen: false,
+};
+
+function _applySettings() {
+  applyTheme(!!settings.lightMode, true);
+  applyAccent(settings.accent || THEMES[settings.theme]?.ax || '#2c8fff');
+  applyFont(settings.font, true);
+  applyDensity(settings.density, true);
+}
+
+function loadSettings() {
+  // Apply JS defaults immediately so UI looks right before bridge is ready.
+  // Saved settings are merged in pywebviewready handler.
+  _applySettings();
+}
+
+function applyTheme(light, silent) {
+  settings.lightMode = !!light;
+  document.body.classList.toggle('theme-light', !!light);
+  // sync UI controls
+  const tbSw  = document.getElementById('theme-sw');
+  const setSw = document.getElementById('set-light');
+  if (tbSw)  tbSw.checked  = !!light;
+  if (setSw) setSw.checked = !!light;
+  if (!silent) saveSettings();
+}
+
+function toggleTheme(force) {
+  const current = !!settings.lightMode;
+  const next = (typeof force === 'boolean') ? force : !current;
+  applyTheme(next);
+}
+function saveSettings() {
+  const a = api();
+  if (!a) return;
+  try {
+    const r = a.settings_save({...settings});
+    if (r && typeof r.then === 'function') r.then(() => {}).catch(() => {});
+  } catch(e) {}
+}
+
+function doSaveSettings() {
+  const a = api();
+  if (!a) { toast('No bridge connection', 'err'); return; }
+  try {
+    const r = a.settings_save({...settings});
+    const done = (res) => {
+      if (res && res.ok === false) toast('Save failed: ' + (res.err || '?'), 'err');
+      else toast('Settings saved', 'ok');
+    };
+    if (r && typeof r.then === 'function') r.then(done).catch(() => toast('Save failed', 'err'));
+    else done(r);
+  } catch(e) {
+    toast('Save error: ' + e, 'err');
+  }
+}
+
+function applyAccent(hex) {
+  settings.accent = hex;
+  // derive lighter/darker variants
+  const rgb = hexToRgb(hex);
+  const lighten = (r,g,b,a) => `rgb(${Math.min(255,r+a)},${Math.min(255,g+a)},${Math.min(255,b+a)})`;
+  const darken  = (r,g,b,a) => `rgb(${Math.max(0,r-a)},${Math.max(0,g-a)},${Math.max(0,b-a)})`;
+  document.documentElement.style.setProperty('--ax',   hex);
+  document.documentElement.style.setProperty('--ax-h', lighten(rgb.r,rgb.g,rgb.b,30));
+  document.documentElement.style.setProperty('--ax-d', darken(rgb.r,rgb.g,rgb.b,40));
+  // sync UI
+  const hexEl = document.getElementById('custom-accent-hex');
+  if (hexEl) hexEl.textContent = hex.toUpperCase();
+  const cust  = document.getElementById('custom-accent');
+  if (cust)   cust.value = hex;
+  document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('on', s.dataset.color === hex));
+  saveSettings();
+}
+function applyCustomAccent(hex) { applyAccent(hex); }
+function hexToRgb(h) {
+  const m = h.replace('#','').match(/[0-9a-f]{2}/gi);
+  return m ? { r: parseInt(m[0],16), g: parseInt(m[1],16), b: parseInt(m[2],16) } : { r:44, g:143, b:255 };
+}
+
+function applyFont(name, silent) {
+  settings.font = name;
+  document.body.classList.remove('font-spaceage', 'font-system');
+  if (name === 'spaceage') document.body.classList.add('font-spaceage');
+  if (name === 'system')   document.body.classList.add('font-system');
+  document.querySelectorAll('.font-opt[data-font]').forEach(o => o.classList.toggle('on', o.dataset.font === name));
+  if (!silent) saveSettings();
+}
+
+function applyDensity(name, silent) {
+  settings.density = name;
+  document.body.classList.remove('dense', 'cozy');
+  if (name === 'dense') document.body.classList.add('dense');
+  if (name === 'cozy')  document.body.classList.add('cozy');
+  document.querySelectorAll('.font-opt[data-density]').forEach(o => o.classList.toggle('on', o.dataset.density === name));
+  if (!silent) saveSettings();
+}
+
+function refreshSettingsView() {
+  const sw = document.getElementById('theme-swatches');
+  if (sw && !sw.children.length) {
+    Object.entries(THEMES).forEach(([k, t]) => {
+      const s = document.createElement('div');
+      s.className = 'swatch';
+      s.dataset.color = t.ax;
+      s.style.background = `linear-gradient(135deg, ${t.ax} 0%, ${t.axh} 100%)`;
+      s.title = k;
+      s.onclick = () => applyAccent(t.ax);
+      sw.appendChild(s);
+    });
+  }
+  document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('on', s.dataset.color === settings.accent));
+  document.getElementById('set-sandbox').checked  = settings.sandbox;
+  document.getElementById('set-livemon').checked  = settings.livemon;
+  document.getElementById('set-autoauth').checked = settings.autoauth;
+  document.getElementById('sb-sw').checked        = settings.sandbox;
+  const sl = document.getElementById('set-light');
+  const tl = document.getElementById('theme-sw');
+  if (sl) sl.checked = !!settings.lightMode;
+  if (tl) tl.checked = !!settings.lightMode;
+}
+
+function resetSettings() {
+  if (!confirm('Reset all UI settings to defaults?')) return;
+  Object.assign(settings, { theme:'blue', accent:'#2c8fff', font:'default', density:'normal', lightMode:false, sandbox:false, livemon:false, autoauth:true, guide_seen:false });
+  _applySettings();
+  refreshSettingsView();
+  saveSettings();
+  toast('Settings reset', 'ok');
+}
+
+/* ════════════════════════════════════════════════════════════
+   CONNECTION GUIDE
+   ════════════════════════════════════════════════════════════ */
+const CONNECTION_POINTS = [
+  { id:'cok',  label:'COK-001 / 002',  models:'CECHA · CECHB · CECHC · CECHE',           img:'../assets/PS3-Serial-Connection-Points/COK-001-002-(A-E-Models)/COK-001_SC_UART_testpads.jpg' },
+  { id:'sem',  label:'SEM-001',         models:'CECHG (FAT)',                              img:'../assets/PS3-Serial-Connection-Points/SEM-001-(G-Models)/SEM-001_SC_UART_testpads.jpg' },
+  { id:'dia1', label:'DIA-001',         models:'CECHH · CECHJ · CECHK',                    img:'../assets/PS3-Serial-Connection-Points/DIA-001-002-(H-K-Models)/DIA-001_SC_UART_testpads.jpg' },
+  { id:'dia2', label:'DIA-002',         models:'CECHH · CECHJ · CECHK (rev)',              img:'../assets/PS3-Serial-Connection-Points/DIA-001-002-(H-K-Models)/DIA-002_SC_UART_testpads.jpg' },
+  { id:'dyn',  label:'DYN-001',         models:'CECH-20xx (Slim)',                         img:'../assets/PS3-Serial-Connection-Points/DYN-001-(20xx-Model)/DYN-001_SC_UART_testpads.jpg' },
+  { id:'sur',  label:'SUR / JTP / JSD / KTE', models:'CECH-21xx … 40xx (Slim)',            img:'../assets/PS3-Serial-Connection-Points/SUR-001-JTP-001-JSD-001-KTE-001-(21xx-40xx-Models)/SUR-001_SC_and_SB_UART_testpads.jpg' },
+  { id:'ver',  label:'VER-001',         models:'CECH-L … Q (Slim)',                        img:'../assets/PS3-Serial-Connection-Points/VER-001-(L-Q-Models)/VER-001_SC_UART_testpads.jpg' },
+  { id:'sw3',  label:'SW3',             models:'All Super Slim',                           img:'../assets/PS3-Serial-Connection-Points/All-Super-Slim-Models/SW3_SC_UART_testpads.jpg' },
+];
+let CONN_ACTIVE = null;
+
+function renderConnList() {
+  const list = document.getElementById('conn-list');
+  if (!list) return;
+  list.innerHTML = '';
+  CONNECTION_POINTS.forEach(b => {
+    const d = document.createElement('div');
+    d.className = 'conn-item' + (CONN_ACTIVE === b.id ? ' on' : '');
+    d.innerHTML = `<div class="l">${b.label}</div><div class="s">${b.models}</div>`;
+    d.onclick = () => selectConnBoard(b.id);
+    list.appendChild(d);
+  });
+}
+
+function selectConnBoard(id) {
+  CONN_ACTIVE = id;
+  const b = CONNECTION_POINTS.find(x => x.id === id);
+  if (!b) return;
+  renderConnList();
+  document.getElementById('conn-title').innerHTML = `<strong>${b.label}</strong> &middot; <span class="muted">${b.models}</span>`;
+  document.getElementById('conn-title').classList.remove('muted');
+  document.getElementById('conn-img-area').innerHTML = `<img src="${b.img}" id="conn-img" onclick="zoomConnImg()" alt="UART testpads">`;
+  document.getElementById('conn-zoom-btn').disabled = false;
+  document.getElementById('conn-badge').textContent = b.label;
+}
+
+function zoomConnImg() {
+  const img = document.getElementById('conn-img');
+  if (img) img.classList.toggle('zoomed');
+}
+
+/* ════════════════════════════════════════════════════════════
+   ERROR CODES (expanded DB + filter + wiki link)
+   ════════════════════════════════════════════════════════════ */
+const ERROR_CODES = [
+  // Syscon errlog codes
+  { code:'A0101001', label:'BE_POWER_FAIL',       desc:'Cell main power failure -> check PSU and power rail.', sev:'crit' },
+  { code:'A0101002', label:'RSX_POWER_FAIL',      desc:'RSX main power failure -> check PSU and power rail.', sev:'crit' },
+  { code:'A0201001', label:'BE_THERMAL_FAIL',     desc:'Cell overtemperature -> repaste, clean fan, check airflow.', sev:'crit' },
+  { code:'A0201002', label:'RSX_THERMAL_FAIL',    desc:'RSX overtemperature -> repaste, clean fan, check airflow.', sev:'crit' },
+  { code:'A0301001', label:'BE_BOOT_FAIL',        desc:'Cell boot failure -> corrupted firmware or hardware fault.', sev:'crit' },
+  { code:'A0301002', label:'RSX_BOOT_FAIL',       desc:'RSX boot failure -> corrupted firmware or hardware fault.', sev:'crit' },
+  { code:'A0401001', label:'BE_VRAM_POWER_FAIL',  desc:'Cell VRAM power failure -> check VRM and caps near Cell.', sev:'crit' },
+  { code:'A0401002', label:'RSX_VRAM_POWER_FAIL', desc:'RSX VRAM power failure -> check VRM and caps near RSX.', sev:'crit' },
+  { code:'A0501001', label:'BE_SCEI_FAIL',        desc:'Cell SCEI security failure -> possible auth/firmware issue.', sev:'crit' },
+  { code:'A0501002', label:'RSX_SCEI_FAIL',       desc:'RSX SCEI failure -> possible auth/firmware issue.', sev:'crit' },
+  { code:'A0601001', label:'BE_PLL_FAIL',         desc:'Cell PLL/clock failure -> cold solder or RSX damage.', sev:'crit' },
+  { code:'A0601002', label:'RSX_PLL_FAIL',        desc:'RSX PLL/clock failure -> RSX or interconnect issue.', sev:'crit' },
+  { code:'A0701001', label:'BE_EXT_FAIL',         desc:'Cell external fault -> check XDR RAM.', sev:'crit' },
+  { code:'A0701002', label:'RSX_EXT_FAIL',        desc:'RSX external fault -> check GDDR3 VRAM.', sev:'crit' },
+  { code:'A0801001', label:'BE_VRM_FAIL',         desc:'Cell voltage regulator failure -> faulty VRM module or caps.', sev:'crit' },
+  { code:'A0801002', label:'RSX_VRM_FAIL',        desc:'RSX voltage regulator failure -> faulty VRM module or caps.', sev:'crit' },
+  // Display error codes
+  { code:'1001',     label:'CPU Error',           desc:'Cell processor fault -> reflow or replace NEC/Tokin caps.', sev:'crit' },
+  { code:'1002',     label:'GPU Error',           desc:'RSX GPU fault -> reflow or replace NEC/Tokin caps.', sev:'crit' },
+  { code:'1003',     label:'CPU + GPU Error',     desc:'Both Cell and RSX fault -> reflow, check NEC/Tokin caps.', sev:'crit' },
+  { code:'1200',     label:'Overheat',            desc:'Console overheated -> clean fan and heatsink, repaste.', sev:'warn' },
+  { code:'1201',     label:'Fan Fault',           desc:'Fan not spinning or sensor error -> check fan connector.', sev:'warn' },
+  { code:'1202',     label:'Overheat (RSX)',      desc:'RSX temperature too high -> repaste RSX.', sev:'warn' },
+  { code:'1700',     label:'HDD Error',           desc:'Hard drive communication failure -> reseat or replace HDD.', sev:'warn' },
+  { code:'1701',     label:'HDD Not Found',       desc:'No HDD detected -> reseat or replace HDD.', sev:'warn' },
+  { code:'1800',     label:'BD Drive Error',      desc:'Blu-ray drive fault -> replace BD drive or laser.', sev:'warn' },
+  { code:'3002',     label:'BD Auth Fail',        desc:'Blu-ray disc authentication error -> clean disc/lens.', sev:'warn' },
+  // 8xx PSN/runtime codes
+  { code:'80010514', label:'Disc Read Error',     desc:'Blu-ray read failure -> clean lens or replace BD drive.', sev:'warn' },
+  { code:'8002F14E', label:'Update Failure',      desc:'Firmware update error -> try a different USB stick or reformat.', sev:'warn' },
+  { code:'8001003D', label:'No HDD',              desc:'HDD missing or not formatted -> insert/format HDD.', sev:'warn' },
+  { code:'80029564', label:'NP Error',            desc:'PlayStation Network error -> check internet connection.', sev:'' },
+  { code:'8002A537', label:'NP Timeout',          desc:'PSN connection timeout -> check NAT type and router.', sev:'' },
+  { code:'8002A548', label:'NP Disconnected',     desc:'PSN connection lost -> check internet connection.', sev:'' },
+  { code:'80022D11', label:'BD Drive Error',      desc:'Blu-ray drive internal error -> replace BD drive.', sev:'warn' },
+  { code:'80010017', label:'Save Corrupt',        desc:'Save data corrupt -> delete save data.', sev:'warn' },
+  { code:'8002B241', label:'DRM Error',           desc:'Content license issue -> restore licences in Account Mgmt.', sev:'warn' },
+  { code:'8002F1F9', label:'Update File Bad',     desc:'Update file corrupted -> re-download.', sev:'warn' },
+  { code:'80029C68', label:'Eboot Error',         desc:'EBOOT.BIN corrupted or wrong region -> reinstall game.', sev:'warn' },
+  { code:'80710092', label:'PSN Sign-in Issue',   desc:'PSN sign-in problem -> wait or retry later.', sev:'' },
+  { code:'80710B23', label:'Connection Error',    desc:'Could not connect to network — DNS or NAT issue.', sev:'' },
+];
+
+function renderErrorList(filter) {
+  const list = document.getElementById('err-list');
+  if (!list) return;
+  const q = (filter || '').toLowerCase().trim();
+  const items = ERROR_CODES.filter(e =>
+    !q || e.code.toLowerCase().includes(q) || e.label.toLowerCase().includes(q) || e.desc.toLowerCase().includes(q)
+  );
+  document.getElementById('err-count').textContent = items.length + ' / ' + ERROR_CODES.length + ' codes';
+  list.innerHTML = items.map(e => `
+    <div class="err-row ${e.sev === 'crit' ? 'crit' : (e.sev === 'warn' ? 'warn-row' : '')}" onclick="copyText('${e.code}')">
+      <div class="code">${e.code}</div>
+      <div>
+        <div class="lbl">${e.label}</div>
+        <div class="desc">${e.desc}</div>
+      </div>
+    </div>
+  `).join('') || '<div style="padding:30px;text-align:center;color:var(--t-4);font-size:12px">No matches.</div>';
+}
+
+function filterErrors() {
+  const q = document.getElementById('err-q').value;
+  renderErrorList(q);
+}
+
+function openErrorWiki() {
+  if (api() && api().open_external) {
+    api().open_external('errors_wiki');
+  } else {
+    window.open('../assets/Errors/Error Codes - PS3 Developer wiki.html', '_blank');
+  }
+}
+
+function copyText(t) {
+  try { navigator.clipboard.writeText(t); toast('Copied: ' + t, 'ok'); }
+  catch (e) { toast('Copy failed', 'err'); }
+}
+
+/* ════════════════════════════════════════════════════════════
+   UNDERVOLT
+   ════════════════════════════════════════════════════════════ */
+// Voltage lookup table (index 0 = 0.8375V, index 61 = 1.6000V, step 0.0125V)
+const UV_TABLE = [
+  {v:0.8375,h:'0A'},{v:0.8500,h:'29'},{v:0.8625,h:'09'},{v:0.8750,h:'28'},
+  {v:0.8875,h:'08'},{v:0.9000,h:'27'},{v:0.9125,h:'07'},{v:0.9250,h:'26'},
+  {v:0.9375,h:'06'},{v:0.9500,h:'25'},{v:0.9625,h:'05'},{v:0.9750,h:'24'},
+  {v:0.9875,h:'04'},{v:1.0000,h:'23'},{v:1.0125,h:'03'},{v:1.0250,h:'22'},
+  {v:1.0375,h:'02'},{v:1.0500,h:'21'},{v:1.0625,h:'01'},{v:1.0750,h:'20'},
+  {v:1.0875,h:'00'},{v:1.1000,h:'3E'},{v:1.1125,h:'1E'},{v:1.1250,h:'3D'},
+  {v:1.1375,h:'1D'},{v:1.1500,h:'3C'},{v:1.1625,h:'1C'},{v:1.1750,h:'3B'},
+  {v:1.1875,h:'1B'},{v:1.2000,h:'3A'},{v:1.2125,h:'1A'},{v:1.2250,h:'39'},
+  {v:1.2375,h:'19'},{v:1.2500,h:'38'},{v:1.2625,h:'18'},{v:1.2750,h:'37'},
+  {v:1.2875,h:'17'},{v:1.3000,h:'36'},{v:1.3125,h:'16'},{v:1.3250,h:'35'},
+  {v:1.3375,h:'15'},{v:1.3500,h:'34'},{v:1.3625,h:'14'},{v:1.3750,h:'33'},
+  {v:1.3875,h:'13'},{v:1.4000,h:'32'},{v:1.4125,h:'12'},{v:1.4250,h:'31'},
+  {v:1.4375,h:'11'},{v:1.4500,h:'30'},{v:1.4625,h:'10'},{v:1.4750,h:'2F'},
+  {v:1.4875,h:'0F'},{v:1.5000,h:'2E'},{v:1.5125,h:'0E'},{v:1.5250,h:'2D'},
+  {v:1.5375,h:'0D'},{v:1.5500,h:'2C'},{v:1.5625,h:'0C'},{v:1.5750,h:'2B'},
+  {v:1.5875,h:'0B'},{v:1.6000,h:'2A'}
+];
+
+function uvSwitchMode(mode) {
+  document.getElementById('uv-auto').style.display   = mode === 'auto'   ? '' : 'none';
+  document.getElementById('uv-manual').style.display = mode === 'manual' ? '' : 'none';
+  document.getElementById('uv-btn-auto').classList.toggle('on',   mode === 'auto');
+  document.getElementById('uv-btn-manual').classList.toggle('on', mode === 'manual');
+}
+
+function uvSliderUpdate(chip) {
+  const idx  = parseInt(document.getElementById('uv-' + chip + '-slider').value);
+  const entry = UV_TABLE[idx];
+  document.getElementById('uv-' + chip + '-display').textContent =
+    entry.v.toFixed(4) + 'V (0x' + entry.h + ')';
+}
+
+function doUndervolt(chip) {
+  const nm      = document.querySelector('input[name="uv-' + chip + '-nm"]:checked').value;
+  const reverse = document.getElementById('uv-reverse').checked;
+  const mode    = reverse ? 'stock' : 'undervolt';
+  const label   = chip.toUpperCase() + ' ' + nm + ' ' + (reverse ? 'Restore Stock' : 'Undervolt');
+  const warn    = reverse
+    ? 'Restore ' + chip.toUpperCase() + ' ' + nm + ' to stock voltage?'
+    : 'Apply ' + chip.toUpperCase() + ' ' + nm + ' undervolt?\n\nWARNING: Can cause instability. Test thoroughly!';
+  if (!confirm(warn)) return;
+  api() && api().undervolt_apply(port(), sc(), chip, nm, mode);
+}
+
+function doUndervoltManual(chip) {
+  const idx   = parseInt(document.getElementById('uv-' + chip + '-slider').value);
+  const entry = UV_TABLE[idx];
+  if (!confirm('Apply ' + chip.toUpperCase() + ' voltage ' + entry.v.toFixed(4) + 'V (0x' + entry.h + ')?\n\nWARNING: Can cause instability. Test thoroughly!')) return;
+  api() && api().undervolt_manual(port(), sc(), chip, entry.h);
+}
+
+function onUndervoltDone(ok, msg) {
+  toast(msg, ok ? 'ok' : 'err');
+}
+
+/* ════════════════════════════════════════════════════════════
+   BOOT SCREEN
+   ════════════════════════════════════════════════════════════ */
+const BOOT_LINES = [
+  { t:  200, txt: '> INITIALISING CORE MODULES',            st: '' },
+  { t:  600, txt: '  MEMORY ALLOCATOR .............. <ok>[ OK ]</ok>',  st: '' },
+  { t:  950, txt: '  UART DRIVER INTERFACE ......... <ok>[ OK ]</ok>',  st: '' },
+  { t: 1400, txt: '  SERIAL PORT ENUMERATOR ........ <ok>[ OK ]</ok>',  st: '' },
+  { t: 1900, txt: '' },
+  { t: 2000, txt: '> LOADING SYSCON MODULES',               st: '' },
+  { t: 2400, txt: '  AUTH PROTOCOL ENGINE .......... <ok>[ OK ]</ok>',  st: '' },
+  { t: 2900, txt: '  EEPROM COMMAND PARSER ......... <ok>[ OK ]</ok>',  st: '' },
+  { t: 3400, txt: '  RSX PATCH DATABASE ............ <ok>[ OK ]</ok>',  st: '' },
+  { t: 3900, txt: '  FAN TABLE INTERPRETER ......... <ok>[ OK ]</ok>',  st: '' },
+  { t: 4300, txt: '  UNDERVOLT PRESET REGISTRY ..... <ok>[ OK ]</ok>',  st: '' },
+  { t: 4700, txt: '' },
+  { t: 4800, txt: '> LOADING UI SUBSYSTEM',                 st: '' },
+  { t: 5200, txt: '  WEBVIEW2 RENDERER ............. <ok>[ OK ]</ok>',  st: '' },
+  { t: 5700, txt: '  DIAGNOSTIC INTERFACE .......... <ok>[ OK ]</ok>',  st: '' },
+  { t: 6100, txt: '  ERROR CODE DATABASE ........... <ok>[ OK ]</ok>',  st: '' },
+  { t: 6500, txt: '' },
+  { t: 6600, txt: '> ESTABLISHING BACKEND BRIDGE',          st: '' },
+  { t: 7200, txt: '  PYTHON BRIDGE ................. <warn>[ WAIT ]</warn>', st: 'bridge' },
+];
+
+let _bootDone = false;
+
+function bootDismiss() {
+  if (_bootDone) return;
+  _bootDone = true;
+  const el = document.getElementById('boot-screen');
+  document.getElementById('boot-status').textContent = 'READY — LAUNCHING INTERFACE';
+  document.getElementById('boot-bar-fill').style.width = '100%';
+  // update bridge line
+  const bLine = document.querySelector('.bl[data-id="bridge"]');
+  if (bLine) bLine.innerHTML = '  PYTHON BRIDGE ................. <span class="ok">[ OK ]</span>';
+  setTimeout(() => {
+    el.classList.add('fade-out');
+    setTimeout(() => el.classList.add('hidden'), 650);
+  }, 600);
+}
+
+(function runBoot() {
+  const log  = document.getElementById('boot-log');
+  const bar  = document.getElementById('boot-bar-fill');
+  const stat = document.getElementById('boot-status');
+  const total = BOOT_LINES[BOOT_LINES.length - 1].t + 1000;
+
+  BOOT_LINES.forEach(({ t, txt, st }) => {
+    setTimeout(() => {
+      if (_bootDone) return;
+      const div = document.createElement('div');
+      div.className = 'bl' + (st ? ' cursor' : '');
+      if (st) div.dataset.id = st;
+      // convert <ok>/<warn>/<err> tags to spans
+      div.innerHTML = txt
+        .replace(/<ok>(.*?)<\/ok>/g,   '<span class="ok">$1</span>')
+        .replace(/<warn>(.*?)<\/warn>/g,'<span class="warn">$1</span>')
+        .replace(/<err>(.*?)<\/err>/g,  '<span class="err">$1</span>');
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+      bar.style.width = Math.min(95, (t / total) * 100) + '%';
+    }, t);
+  });
+
+  // pulse status text while waiting for bridge
+  let dots = 0;
+  const pulse = setInterval(() => {
+    if (_bootDone) { clearInterval(pulse); return; }
+    dots = (dots + 1) % 4;
+    stat.textContent = 'WAITING FOR BRIDGE' + '.'.repeat(dots);
+  }, 500);
+})();
+
+/* ════════════════════════════════════════════════════════════
+   WELCOME GUIDE
+   ════════════════════════════════════════════════════════════ */
+const GUIDE_KEY   = 'nostadiag.guide.seen';
+const GUIDE_STEPS = 4;
+let guideStep = 0;
+
+function showGuide() {
+  guideStep = 0;
+  document.getElementById('guide-overlay').classList.remove('hidden');
+  guideRender();
+}
+
+function guideSkip() {
+  document.getElementById('guide-overlay').classList.add('hidden');
+  settings.guide_seen = true;
+  saveSettings();
+}
+
+function guideNext() {
+  if (guideStep < GUIDE_STEPS - 1) {
+    guideStep++;
+    guideRender();
+  } else {
+    guideSkip();
+  }
+}
+
+function guideRender() {
+  // steps
+  document.querySelectorAll('.guide-step').forEach((el, i) => {
+    el.classList.toggle('active', i === guideStep);
+  });
+  // dots
+  const dots = document.getElementById('guide-dots');
+  dots.innerHTML = '';
+  for (let i = 0; i < GUIDE_STEPS; i++) {
+    const d = document.createElement('div');
+    d.className = 'guide-dot' + (i === guideStep ? ' active' : i < guideStep ? ' done' : '');
+    d.onclick = () => { guideStep = i; guideRender(); };
+    d.style.cursor = 'pointer';
+    dots.appendChild(d);
+  }
+  // button label
+  const btn = document.getElementById('guide-next');
+  btn.textContent = guideStep === GUIDE_STEPS - 1 ? "Let's go!" : 'Next →';
+  // skip label
+  document.getElementById('guide-skip').style.visibility =
+    guideStep === GUIDE_STEPS - 1 ? 'hidden' : 'visible';
+}
+
+// Guide shown via pywebviewready handler after settings_load().
+
+function showVoltageRanges() {
+  showModal(
+    'Voltage Ranges — by DoublesAdvocat',
+    '<img src="../assets/voltage_ranges.png" style="width:100%;border-radius:4px;display:block">',
+    [{ label: 'Close', cls: '', click: closeModal }]
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   RESIZER
+   ════════════════════════════════════════════════════════════ */
+function setupResizer() {
+  const h = document.getElementById('term-resize');
+  const p = document.getElementById('term-pane');
+  let x0, w0;
+  h.addEventListener('mousedown', e => {
+    x0 = e.clientX; w0 = p.offsetWidth;
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+    const mv = e2 => {
+      const w = Math.min(Math.max(w0 + (x0 - e2.clientX), 320), window.innerWidth * .7);
+      p.style.width = w + 'px';
+    };
+    const up = () => {
+      document.removeEventListener('mousemove', mv);
+      document.removeEventListener('mouseup', up);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('mousemove', mv);
+    document.addEventListener('mouseup', up, { once: true });
+  });
+}
+</script>
+</body>
+</html>
