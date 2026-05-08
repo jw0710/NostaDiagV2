@@ -18,7 +18,7 @@
 NostaDiag is a standalone Windows GUI for PS3 Syscon work via UART serial.
 No Python required. No terminal commands. No guessing — just a clean interface that covers everything from a quick health check to full fan curve editing and chip undervolting.
 
-V2 is a complete rewrite. The old tkinter interface was functional but rigid — fixed layouts, no real responsiveness, limited to what the widget library could do. V2 runs in a modern web engine, which means a proper visual design, real interactivity, and an experience that actually matches the complexity of the work you're doing.
+V2 is a complete rewrite. The old tkinter interface was functional but rigid — fixed layouts, no real responsiveness, limited to what the widget library could do. I build V2 with the help from Claude so it runs in a modern web engine, which means a proper visual design, real interactivity, and an experience that actually matches the complexity of the work you're doing.
 
 **Requires:** A UART-TTL adapter (CP2102, CH340, FT232, etc.) connected to the PS3 Syscon testpads.
 
