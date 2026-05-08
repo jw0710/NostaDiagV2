@@ -2,8 +2,8 @@
 
 > A modern diagnostic and repair tool for PS3 Syscon operations — built by NostaMods.
 
-[![License](https://img.shields.io/badge/license-NostaDiag%20v2.0-blue.svg)](LICENSE.txt)
-[![Version](https://img.shields.io/badge/version-1.0-BETA-green.svg)]()
+[![License](https://img.shields.io/badge/license-NostaDiag%20v1.0-blue.svg)](LICENSE.txt)
+[![Version](https://img.shields.io/badge/version-2.0-green.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-lightgrey.svg)]()
 
 ![NostaDiag V2.0](gh_assets/main.png)
@@ -96,11 +96,10 @@ See [INSTALL.md](INSTALL.md) for detailed setup instructions including hardware 
 
 ## Credits
 
-- **M4j0r** — reverse engineering, VID voltage table research
-- **Sage** — testing and community support
-- **DoublesAdvocat** — hardware research contributions
-- **Calyps0man** — documentation and community contributions
-- PSX-Place community — Frankenstein mod documentation
+- **M4j0r** — foundational work on PS3 Syscon internals, UART protocol, and diagnostic commands
+- **Sage** — reverse-engineered authentication methods and Syscon security mechanisms
+- **DoublesAdvocat** — research and documentation of safe voltage ranges per chip revision
+- **Calyps0man** — UI feedback, visual design input, testing, aswell as research contributions to the Frankenstein mod
 
 ---
 
