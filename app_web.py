@@ -239,6 +239,45 @@ class Api:
 
     # ── RSX Autopatch ─────────────────────────────────────────────────────────
 
+    # ── Internal helpers for patch execution ─────────────────────────────────
+
+    def _execute_patch_cmds(self, ps3, cmds):
+        """Execute a list of write commands in order, verify each step.
+        Returns (ok: bool, fail_msg: str)."""
+        import time as _time
+        for i, cmd in enumerate(cmds, 1):
+            self._log('[{}/{}] {}'.format(i, len(cmds), cmd), 'cmd')
+            ret = ps3.command(cmd, wait=1)
+            out = ps3.fmt(ret)
+            ok = ret[0] != 0xFFFFFFFF
+            self._log(out, 'ok' if ok else 'err')
+            if not ok:
+                msg = 'Failed at step {}: {}'.format(i, out)
+                self._log(msg, 'err')
+                return False, msg
+            _time.sleep(0.3)
+        return True, ''
+
+    def _parse_bytes_from_response(self, ret, length):
+        """Parse raw byte values out of a PS3UART command response.
+        Reuses the same tokenisation logic as read_memory()."""
+        tokens = []
+        for item in ret[1]:
+            for piece in str(item).replace('\r', ' ').replace('\n', ' ').split():
+                tokens.append(piece)
+        hexset = set('0123456789abcdefABCDEF')
+        bytes_list = []
+        for tok in tokens:
+            t = tok.strip()
+            if len(t) == 2 and all(c in hexset for c in t):
+                bytes_list.append(int(t, 16))
+            elif len(t) == 4 and all(c in hexset for c in t):
+                bytes_list.append(int(t[0:2], 16))
+                bytes_list.append(int(t[2:4], 16))
+        return bytes_list[:length]
+
+    # ── RSX Autopatch ─────────────────────────────────────────────────────────
+
     def patch_rsx(self, port, sc_type, nm, model='standard'):
         PATCHES = {
             '40nm_standard': [
@@ -259,8 +298,24 @@ class Api:
                 "w 348B 88",
                 "w 34AF 88",
             ],
+            # Source: psdevwiki.com/ps3/Talk:Rambus_Registers
+            # 28nm Training Data identical to 40nm (REX-001 board, PSX-Place forum)
+            '28nm_standard': [
+                "w 3242 03 61 82 80 01 91",
+                "w 3254 21 EE",
+                "w 348B 8B",
+                "w 34AF 8B",
+            ],
+            # Source: psdevwiki.com/ps3/Talk:Rambus_Registers (COK-001 / COK-002)
+            # Mirror bytes 0x348B / 0x34AF are UNVERIFIED — experimental
+            '90nm_standard': [
+                "w 3242 09 70 89 70 06 90",
+                "w 3254 21 E4",
+                "w 348B 90",
+                "w 34AF 90",
+            ],
         }
-        key = '{}_{}' .format(nm, model)
+        key = '{}_{}'.format(nm, model)
         cmds = PATCHES.get(key)
         if not cmds:
             self._log('Unknown patch combination: {}/{}'.format(nm, model), 'err')
@@ -268,27 +323,177 @@ class Api:
 
         def _run():
             try:
+                if sc_type != 'CXRF':
+                    self._log('RSX Patch requires CXRF mode!', 'err')
+                    self._js('onPatchDone(false,"CXRF mode required for RSX patch")')
+                    return
                 label = 'RSX {}NM Patch ({})'.format(nm.upper().replace('NM', 'nm'), model.upper())
                 self._log('=== {} ==='.format(label), 'cmd')
                 ps3 = self._ps3(port, sc_type)
-                for i, cmd in enumerate(cmds, 1):
-                    self._log('[{}/{}] {}'.format(i, len(cmds), cmd), 'cmd')
-                    ret = ps3.command(cmd, wait=1)
-                    out = ps3.fmt(ret)
-                    ok = ret[0] != 0xFFFFFFFF
-                    self._log(out, 'ok' if ok else 'err')
-                    if not ok:
-                        msg = 'Patch failed at step {}: {}'.format(i, out)
-                        self._log(msg, 'err')
-                        self._js('onPatchDone(false,{})'.format(json.dumps(msg)))
-                        return
-                    import time as _time
-                    _time.sleep(0.3)
-                self._log('{} completed!'.format(label), 'ok')
-                self._js('onPatchDone(true,{})'.format(json.dumps(label + ' completed successfully')))
+                ok, fail_msg = self._execute_patch_cmds(ps3, cmds)
+                if ok:
+                    self._log('{} completed!'.format(label), 'ok')
+                    self._js('onPatchDone(true,{})'.format(json.dumps(label + ' completed successfully')))
+                else:
+                    self._js('onPatchDone(false,{})'.format(json.dumps(fail_msg)))
             except Exception as e:
                 self._log('Patch error: {}'.format(e), 'err')
                 self._js('onPatchDone(false,{})'.format(json.dumps(str(e))))
+        self._thread(_run)
+        return {'ok': True}
+
+    # ── RSX Config Backup / Restore ───────────────────────────────────────────
+
+    @staticmethod
+    def _resolve_dialog_path(result):
+        """Normalise the return value of create_file_dialog across pywebview versions.
+        May return: str, tuple/list of str, tuple/list with None, or None.
+        Returns a valid path string, or None if the dialog was cancelled."""
+        if result is None:
+            return None
+        if isinstance(result, (list, tuple)):
+            path = result[0] if result else None
+        else:
+            path = result  # already a str
+        return path if path else None
+
+    def rsx_backup(self, port, sc_type):
+        def _run():
+            try:
+                import datetime
+                self._log('=== RSX Config Backup ===', 'cmd')
+                ps3 = self._ps3(port, sc_type)
+
+                # Read board serial
+                self._log('Reading board serial...', 'dim')
+                serial = 'UNKNOWN'
+                try:
+                    ret = ps3.command('bsn', wait=0.5)
+                    if ret[0] != 0xFFFFFFFF:
+                        out = ps3.fmt(ret)
+                        hexset = set('0123456789abcdefABCDEF')
+                        for tok in reversed(out.split()):
+                            t = tok.strip()
+                            if len(t) >= 8 and all(c in hexset for c in t):
+                                serial = t.upper()
+                                break
+                except Exception:
+                    pass
+                self._log('Serial: {}'.format(serial), 'dim')
+
+                # RSX config addresses to back up
+                RSX_READS = [
+                    ('3242', 6),
+                    ('3254', 2),
+                    ('348B', 1),
+                    ('34AF', 1),
+                ]
+                rsx_config = {}
+                for addr_str, length in RSX_READS:
+                    addr = int(addr_str, 16)
+                    if sc_type == 'CXRF':
+                        cmd = 'r {:04X} {:02X}'.format(addr, length)
+                    else:
+                        cmd = 'EEP GET {:04X} {:02X}'.format(addr, length)
+                    self._log('Reading 0x{}...'.format(addr_str), 'dim')
+                    ret = ps3.command(cmd, wait=1)
+                    if ret[0] == 0xFFFFFFFF:
+                        msg = 'Read failed at 0x{}'.format(addr_str)
+                        self._log(msg, 'err')
+                        self._js('onBackupDone(false, {})'.format(json.dumps(msg)))
+                        return
+                    parsed = self._parse_bytes_from_response(ret, length)
+                    rsx_config[addr_str] = ' '.join('{:02X}'.format(b) for b in parsed)
+                    self._log('  0x{}: {}'.format(addr_str, rsx_config[addr_str]), 'ok')
+
+                now = datetime.datetime.now()
+                data = {
+                    'serial':     serial,
+                    'sc_type':    sc_type,
+                    'date':       now.strftime('%Y-%m-%d %H:%M:%S'),
+                    'tool':       'NostaDiag',
+                    'rsx_config': rsx_config,
+                }
+                fname = 'RSX_Backup_{}_{}.json'.format(serial, now.strftime('%Y-%m-%d_%H-%M'))
+
+                result = self.window.create_file_dialog(
+                    webview.SAVE_DIALOG,
+                    save_filename=fname,
+                    file_types=('JSON Files (*.json)',)
+                )
+                path = self._resolve_dialog_path(result)
+                if not path:
+                    self._log('Backup cancelled.', 'dim')
+                    return
+                with open(path, 'w') as f:
+                    json.dump(data, f, indent=2)
+                self._log('Backup saved: {}'.format(path), 'ok')
+                self._js('onBackupDone(true, {})'.format(json.dumps(os.path.basename(path))))
+            except Exception as e:
+                self._log('Backup error: {}'.format(e), 'err')
+                self._js('onBackupDone(false, {})'.format(json.dumps(str(e))))
+        self._thread(_run)
+        return {'ok': True}
+
+    def rsx_restore(self, port, sc_type):
+        def _run():
+            try:
+                result = self.window.create_file_dialog(
+                    webview.OPEN_DIALOG,
+                    file_types=('JSON Files (*.json)',)
+                )
+                path = self._resolve_dialog_path(result)
+                if not path:
+                    return
+                with open(path, 'r') as f:
+                    data = json.load(f)
+
+                required_addrs = {'3242', '3254', '348B', '34AF'}
+                if 'rsx_config' not in data or not required_addrs.issubset(data['rsx_config'].keys()):
+                    msg = 'Invalid backup file: missing required RSX config fields'
+                    self._log(msg, 'err')
+                    self._js('onBackupDone(false, {})'.format(json.dumps(msg)))
+                    return
+
+                self._log('Backup loaded: Serial={}, Date={}'.format(
+                    data.get('serial', '?'), data.get('date', '?')
+                ), 'dim')
+                self._js('onRestorePreview({})'.format(json.dumps(data)))
+            except Exception as e:
+                self._log('Restore error: {}'.format(e), 'err')
+                self._js('onBackupDone(false, {})'.format(json.dumps(str(e))))
+        self._thread(_run)
+        return {'ok': True}
+
+    def rsx_restore_apply(self, port, sc_type, backup_data):
+        def _run():
+            try:
+                if sc_type != 'CXRF':
+                    self._log('RSX Restore requires CXRF mode!', 'err')
+                    self._js('onRestoreDone(false, "CXRF mode required for RSX restore")')
+                    return
+                cfg = backup_data.get('rsx_config', {})
+                cmds = [
+                    'w 3242 {}'.format(cfg.get('3242', '')),
+                    'w 3254 {}'.format(cfg.get('3254', '')),
+                    'w 348B {}'.format(cfg.get('348B', '')),
+                    'w 34AF {}'.format(cfg.get('34AF', '')),
+                ]
+                self._log('=== RSX Config Restore ===', 'cmd')
+                self._log('Source: Serial={}, Date={}'.format(
+                    backup_data.get('serial', '?'), backup_data.get('date', '?')
+                ), 'dim')
+                ps3 = self._ps3(port, sc_type)
+                ok, fail_msg = self._execute_patch_cmds(ps3, cmds)
+                if ok:
+                    self._log('RSX config restored successfully.', 'ok')
+                    self._log('Run Checksum Correction after restore!', 'warn')
+                    self._js('onRestoreDone(true, "RSX config restored. Run Checksum Correction!")')
+                else:
+                    self._js('onRestoreDone(false, {})'.format(json.dumps(fail_msg)))
+            except Exception as e:
+                self._log('Restore error: {}'.format(e), 'err')
+                self._js('onRestoreDone(false, {})'.format(json.dumps(str(e))))
         self._thread(_run)
         return {'ok': True}
 
@@ -747,7 +952,27 @@ def _start_local_server(directory, settings_path_fn):
             if self.path == '/reset-settings':
                 self._handle_reset()
                 return
+            if self.path == '/mode.json':
+                self._handle_mode()
+                return
             super().do_GET()
+
+        def _handle_mode(self):
+            """Return just the lightMode flag so the page can apply the
+            correct theme class before first render — no bridge needed."""
+            try:
+                with open(settings_path_fn(), 'r') as f:
+                    data = json.load(f)
+                light = data.get('lightMode', True)
+            except Exception:
+                light = True
+            body = json.dumps({'lightMode': bool(light)}).encode()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
 
         def _handle_reset(self):
             # Delete settings.json (ignore errors)
