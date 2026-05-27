@@ -1,3 +1,6 @@
+# v2.1 - Added SB (South Bridge) UART passive capture mode.
+#        Sources: psx-place "South Bridge log" thread (38920),
+#                 MikeM64 lv0ldr-spi-mitm writeup, psdevwiki Syscon Hardware.
 from binascii import unhexlify as uhx
 from Cryptodome.Cipher import AES
 import os
@@ -53,6 +56,52 @@ PS3_ERROR_DB = {
     "8002B241": ("DRM Error",           "Content license issue -> restore licences in Account Mgmt"),
 }
 
+# SB UART auto-analysis patterns: (regex, severity, label, diagnosis, fix)
+# severity: 'err' | 'warn' | 'ok'
+# Sources noted per entry.
+SB_DECODE_PATTERNS = [
+    # psx-place thread 38920 / psdevwiki Syscon Hardware
+    (r'BitTraining BE:RRAC:.*RX_STATUS',         'err',  'CELL BGA fault',
+     'Cell BitTraining failed (Syscon corr. A0403034 / A0404401)',
+     'CELL reflow or reball; check NEC/TOKIN caps on FAT boards'),
+    # psx-place thread 38920
+    (r'BitTraining RSX:RRAC:.*RX_STATUS',        'err',  'RSX BGA fault',
+     'RSX BitTraining failed (A0403034 / A0404402 / A0404411)',
+     'RSX reball or replacement; verify VDDR mod on 40nm boards'),
+    # MikeM64 lv0ldr-spi-mitm writeup
+    (r'BitTraining SB:RRAC:.*FLEXIO_ID',         'err',  'SB FlexIO fault',
+     'Southbridge BGA / FlexIO trace fault (A0313031 / A0313032)',
+     'SB reflow; perform pressure test on SB as diagnostic indicator'),
+    # psdevwiki Syscon Hardware / COK board trace analysis
+    (r'BitTraining BE:RRAC:.*FLEXIO_ID',         'err',  'FlexIO trace fault',
+     'FlexIO trace damaged, common after delid (A0402101 / A0403034)',
+     'Trace repair required; check R2001/R2002 on COK boards'),
+    # psx-place thread 38920
+    (r'SB \(FATAL\).*XDR Link not initialized',  'err',  'SB GLOD',
+     'XDR link dead (A0902203)',
+     'NAND/NOR hash repair via system update, otherwise SB replacement'),
+    # psdevwiki Syscon Hardware
+    (r'SB Counter Error',                        'warn', 'SB Counter/Thermal',
+     'SB thermal or counter anomaly',
+     'Check fan/paste; inspect IC2101/IC3101/IC3002 thermal monitors'),
+    # psdevwiki Syscon Hardware
+    (r'Busy loop detected',                      'warn', 'PLL unlock',
+     'PLL unlock under VRM stress (A0801301)',
+     'Reduce overclock; check NEC/TOKIN caps (non-25xx)'),
+    # psx-place thread 38920 - generic, sub-step in message when available
+    (r'\[POWERSEQ\]\s*Error',                    'err',  'Power-Sequence fail',
+     'Generic POWERSEQ error - check step number in the raw log for specifics',
+     'Voltage rail check required; step-specific diagnosis needed'),
+    # psx-place thread 38920 - early shutdown during boot common on BC consoles
+    (r'(?<!\[POWERSEQ\]: Step \d{3} : )shutdown', 'warn', 'Early shutdown',
+     'SB sending shutdown during boot sequence',
+     'On BC consoles often indicates EE+GS / PS2 hardware fault'),
+    # Informational - successful boot start
+    (r'sc_init START',                           'ok',   'Boot beginning',
+     'Boot sequence started successfully',
+     '-'),
+]
+
 def _ps3_annotate(line: str) -> str:
     upper = line.upper()
     for code, (label, desc) in PS3_ERROR_DB.items():
@@ -62,8 +111,9 @@ def _ps3_annotate(line: str) -> str:
 
 
 class PS3UART:
-    def __init__(self, port, sc_type, serial_speed, sandbox_mode=False):
+    def __init__(self, port, sc_type, serial_speed, sandbox_mode=False, log_fn=None):
         self.sandbox_mode = sandbox_mode
+        self._log_fn = log_fn  # optional callback: fn(cmd_str) -> None
 
         if not sandbox_mode:
             try:
@@ -144,9 +194,11 @@ class PS3UART:
         else:
             return self.ser.read(self.ser.inWaiting())
 
-    def command(self, com, wait=1, verbose=False):
+    def command(self, com, wait=1, verbose=False, _no_log=False):
         if verbose:
             print('Command: ' + com)
+        if self._log_fn and not _no_log:
+            self._log_fn(com)
 
         if self.sandbox_mode:
             print(f"[SANDBOX] Command: {com}")
@@ -323,6 +375,46 @@ class PS3UART:
                     return 'Auth1 response invalid'
             else:
                 return 'scopen response invalid'
+
+    def sb_capture_loop(self, callback_fn, stop_flag_fn, timeout_idle=5.0):
+        """Passively read SB UART output and call callback_fn(chunk_bytes) per chunk.
+
+        Exits when stop_flag_fn() is True or no data arrives for timeout_idle seconds.
+        Sandbox mode streams _sb_log_sample from sandbox_data.json in small chunks.
+        """
+        if self.sandbox_mode:
+            import json as _json
+            global _SANDBOX_DB
+            if not _SANDBOX_DB:
+                try:
+                    _sb_path = _resource_path("sandbox_data.json")
+                    if os.path.exists(_sb_path):
+                        with open(_sb_path, 'r', encoding='utf-8') as _f:
+                            _SANDBOX_DB = _json.load(_f)
+                except Exception as _e:
+                    print(f"[SANDBOX] sandbox_data.json error: {_e}")
+            sample = _SANDBOX_DB.get('_sb_log_sample', '[INFO]: sc_init START\n')
+            data = sample.encode('utf-8')
+            for i in range(0, len(data), 20):
+                if stop_flag_fn():
+                    break
+                callback_fn(data[i:i + 20])
+                time.sleep(0.12)
+            return
+
+        last_data = time.time()
+        while True:
+            if stop_flag_fn():
+                break
+            waiting = self.ser.inWaiting()
+            if waiting > 0:
+                chunk = self.ser.read(waiting)
+                callback_fn(chunk)
+                last_data = time.time()
+            else:
+                if time.time() - last_data > timeout_idle:
+                    break
+                time.sleep(0.05)
 
     def fmt(self, ret):
         """Format command result to string."""

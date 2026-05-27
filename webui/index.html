@@ -85,6 +85,11 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+/* Disable JetBrains Mono / Cascadia Code ligatures globally (-> must not render as →) */
+* {
+  font-feature-settings: "liga" 0, "calt" 0;
+  font-variant-ligatures: none;
+}
 html, body { height: 100%; }
 body {
   font-family: var(--ui);
@@ -1216,11 +1221,286 @@ body.hide-sb-kbd .sb-item .kbd { display: none; }
 }
 
 /* ============================================================
+   ENGINEERING PREVIEW SPLASH  —  NASA / FALLOUT STYLE
+   ============================================================ */
+#splash-screen {
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, #020d0c 0%, #000 72%);
+  z-index: 1100;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+  overflow: hidden;
+  transition: opacity 1s cubic-bezier(.4,0,1,1);
+}
+#splash-screen.fade-out { opacity: 0; pointer-events: none; }
+#splash-screen.hidden   { display: none; }
+
+/* grid + scanlines */
+#splash-screen::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(64,224,208,.032) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(64,224,208,.032) 1px, transparent 1px),
+    repeating-linear-gradient(to bottom, transparent 0px, transparent 3px, rgba(0,0,0,.2) 3px, rgba(0,0,0,.2) 4px);
+  background-size: 48px 48px, 48px 48px, 100% 4px;
+  pointer-events: none; z-index: 1;
+}
+/* vignette */
+#splash-screen::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,.88) 100%);
+  pointer-events: none; z-index: 2;
+}
+
+/* ── Corner HUD brackets ── */
+.sp-corner {
+  position: absolute;
+  width: 64px; height: 64px;
+  border-color: rgba(64,224,208,.55);
+  border-style: solid;
+  z-index: 5;
+}
+.sp-corner.tl { top: 22px; left: 22px; border-width: 2px 0 0 2px;
+  animation: sp-corner-in .5s .08s ease-out both; }
+.sp-corner.tr { top: 22px; right: 22px; border-width: 2px 2px 0 0;
+  animation: sp-corner-in .5s .16s ease-out both; }
+.sp-corner.bl { bottom: 22px; left: 22px; border-width: 0 0 2px 2px;
+  animation: sp-corner-in .5s .16s ease-out both; }
+.sp-corner.br { bottom: 22px; right: 22px; border-width: 0 2px 2px 0;
+  animation: sp-corner-in .5s .08s ease-out both; }
+
+/* inner notch ticks on each corner */
+.sp-corner::before, .sp-corner::after {
+  content: ''; position: absolute;
+  background: rgba(64,224,208,.45);
+}
+.sp-corner.tl::before { width: 22px; height: 1px; bottom: 14px; left: 0; }
+.sp-corner.tl::after  { width: 1px; height: 22px; right: 14px; top: 0; }
+.sp-corner.tr::before { width: 22px; height: 1px; bottom: 14px; right: 0; }
+.sp-corner.tr::after  { width: 1px; height: 22px; left: 14px; top: 0; }
+.sp-corner.bl::before { width: 22px; height: 1px; top: 14px; left: 0; }
+.sp-corner.bl::after  { width: 1px; height: 22px; right: 14px; bottom: 0; }
+.sp-corner.br::before { width: 22px; height: 1px; top: 14px; right: 0; }
+.sp-corner.br::after  { width: 1px; height: 22px; left: 14px; bottom: 0; }
+
+@keyframes sp-corner-in {
+  from { opacity: 0; transform: scale(.55); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── Corner data readouts ── */
+.sp-cdata {
+  position: absolute;
+  font-size: 9px; line-height: 1.8;
+  color: rgba(64,224,208,.4);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  z-index: 5;
+  animation: sp-fade-in .5s .55s ease-out both;
+}
+.sp-cdata.tl { top: 96px; left: 26px; }
+.sp-cdata.tr { top: 96px; right: 26px; text-align: right; }
+.sp-cdata.bl { bottom: 96px; left: 26px; }
+.sp-cdata.br { bottom: 96px; right: 26px; text-align: right; }
+
+/* ── Horizontal frame lines ── */
+#splash-topbar, #splash-botbar {
+  position: absolute;
+  left: 22px; right: 22px; height: 1px;
+  background: linear-gradient(90deg,
+    rgba(64,224,208,.55) 0%, rgba(64,224,208,.2) 40%,
+    rgba(64,224,208,.2) 60%, rgba(64,224,208,.55) 100%);
+  z-index: 5;
+  animation: sp-fade-in .4s .18s ease-out both;
+}
+#splash-topbar { top: 90px; }
+#splash-botbar { bottom: 90px; }
+
+#splash-topbar::before {
+  content: 'NOSTAMOD DIAGNOSTIC SYSTEMS';
+  position: absolute; left: 0; bottom: 5px;
+  font-size: 9px; letter-spacing: .18em;
+  color: rgba(64,224,208,.5);
+}
+#splash-topbar::after {
+  content: 'v2.03  ▪  ENG-PREVIEW  ▪  INTERNAL';
+  position: absolute; right: 0; bottom: 5px;
+  font-size: 9px; letter-spacing: .12em;
+  color: rgba(64,224,208,.35);
+}
+#splash-botbar::before {
+  content: 'RESTRICTED DISTRIBUTION — NOT FOR PUBLIC RELEASE';
+  position: absolute; left: 0; top: 5px;
+  font-size: 9px; letter-spacing: .14em;
+  color: rgba(64,224,208,.4);
+}
+#splash-botbar::after {
+  content: 'AUTH: PENDING  ▪  UART: STANDBY';
+  position: absolute; right: 0; top: 5px;
+  font-size: 9px; letter-spacing: .12em;
+  color: rgba(64,224,208,.32);
+}
+
+/* ── Scanner sweep ── */
+#splash-scan {
+  position: absolute; left: 0; right: 0; height: 3px;
+  background: linear-gradient(to right,
+    transparent 0%,
+    rgba(64,224,208,.06) 15%,
+    rgba(64,224,208,.45) 48%,
+    rgba(64,224,208,.06) 85%,
+    transparent 100%);
+  box-shadow: 0 0 18px rgba(64,224,208,.18), 0 1px 0 rgba(64,224,208,.08);
+  animation: sp-scan 3.4s .4s linear infinite;
+  z-index: 6; pointer-events: none;
+}
+@keyframes sp-scan {
+  from { top: -3px; opacity: 0; }
+  3%   { opacity: 1; }
+  97%  { opacity: 1; }
+  to   { top: 100%; opacity: 0; }
+}
+
+/* ── Main content ── */
+#splash-inner {
+  text-align: center;
+  position: relative; z-index: 7;
+  max-width: 820px; padding: 0 64px;
+}
+
+#splash-company {
+  font-size: 11px; letter-spacing: .28em;
+  color: rgba(64,224,208,.5);
+  text-transform: uppercase;
+  margin-bottom: 32px;
+  animation: sp-fade-up .5s .35s ease-out both;
+}
+
+/* ── ENGINEERING PREVIEW — SpaceAge, huge, turquoise, EPIC ── */
+#splash-ep {
+  font-family: 'SpaceAge', 'JetBrains Mono', monospace;
+  font-size: clamp(38px, 6.5vw, 78px);
+  color: #40E0D0;
+  letter-spacing: .06em;
+  line-height: 1.12;
+  text-shadow:
+    0 0 12px rgba(64,224,208,1),
+    0 0 35px rgba(64,224,208,.8),
+    0 0 70px rgba(64,224,208,.45),
+    0 0 130px rgba(64,224,208,.2);
+  animation: sp-ep-in .65s .62s ease-out both, sp-flicker 9s 1.6s linear infinite;
+  margin-bottom: 10px;
+}
+
+#splash-ep-sub {
+  font-size: 10.5px; letter-spacing: .22em;
+  color: rgba(64,224,208,.42);
+  text-transform: uppercase;
+  margin-bottom: 26px;
+  animation: sp-fade-up .4s .95s ease-out both;
+}
+
+@keyframes sp-ep-in {
+  from { opacity: 0; transform: translateY(-14px) scaleX(1.06); filter: blur(10px); }
+  to   { opacity: 1; transform: translateY(0)     scaleX(1);    filter: blur(0);   }
+}
+@keyframes sp-flicker {
+  0%,14%,16%,18%,55%,57%,100% { opacity: 1; }
+  15%,56% { opacity: .78; }
+  17%     { opacity: .93; }
+}
+
+/* ── Divider ── */
+#splash-divline {
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%, #40E0D0 20%, #40E0D0 80%, transparent 100%);
+  opacity: .5;
+  margin: 0 auto 26px;
+  width: 0;
+  animation: sp-line-grow .55s 1.12s ease-out forwards;
+}
+@keyframes sp-line-grow { to { width: 100%; } }
+
+/* ── USE WITH CAUTION ── */
+#splash-warn {
+  display: flex; align-items: center; justify-content: center; gap: 18px;
+  animation: sp-fade-up .45s 1.38s ease-out both;
+  margin-bottom: 20px;
+}
+#splash-warn-icon {
+  font-size: 30px; line-height: 1;
+  color: #FFB700;
+  text-shadow: 0 0 14px rgba(255,183,0,.95), 0 0 30px rgba(255,183,0,.5);
+  animation: sp-pulse 1.8s 2.1s ease-in-out infinite;
+}
+@keyframes sp-pulse {
+  0%,100% { opacity: 1; text-shadow: 0 0 14px rgba(255,183,0,.95), 0 0 30px rgba(255,183,0,.5); }
+  50%     { opacity: .35; text-shadow: none; }
+}
+#splash-warn-text {
+  font-family: 'SpaceAge', 'JetBrains Mono', monospace;
+  font-size: clamp(18px, 2.6vw, 30px);
+  color: #FFB700;
+  letter-spacing: .09em;
+  text-shadow: 0 0 12px rgba(255,183,0,.75), 0 0 28px rgba(255,183,0,.35);
+}
+
+/* ── Build info ── */
+#splash-build {
+  font-size: 10px; letter-spacing: .18em;
+  color: rgba(64,224,208,.32);
+  text-transform: uppercase;
+  animation: sp-fade-up .4s 1.68s ease-out both;
+  margin-bottom: 30px;
+}
+
+/* ── Status indicators ── */
+#splash-status {
+  display: flex; align-items: center; justify-content: center;
+  gap: 28px; flex-wrap: wrap;
+  animation: sp-fade-in .5s 2.1s ease-out both;
+}
+.sp-stat {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 9.5px; letter-spacing: .1em;
+  color: rgba(64,224,208,.45);
+  text-transform: uppercase;
+}
+.sp-dot {
+  display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #40E0D0;
+  box-shadow: 0 0 6px rgba(64,224,208,.9);
+  flex-shrink: 0;
+}
+.sp-stat:nth-child(1) .sp-dot { animation: sp-dot-p 2.2s 0.0s ease-in-out infinite; }
+.sp-stat:nth-child(2) .sp-dot { animation: sp-dot-p 2.2s 0.5s ease-in-out infinite; }
+.sp-stat:nth-child(3) .sp-dot { animation: sp-dot-p 2.2s 1.0s ease-in-out infinite; }
+.sp-stat:nth-child(4) .sp-dot { animation: sp-dot-p 2.2s 1.5s ease-in-out infinite; }
+@keyframes sp-dot-p {
+  0%,100% { opacity: 1; transform: scale(1);   box-shadow: 0 0 6px rgba(64,224,208,.9); }
+  50%     { opacity: .2; transform: scale(.6); box-shadow: none; }
+}
+
+/* ── Shared keyframes ── */
+@keyframes sp-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes sp-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ============================================================
    BOOT SCREEN
    ============================================================ */
 #boot-screen {
   position: fixed; inset: 0;
-  background: #000;
+  background: radial-gradient(ellipse at 30% 20%, #020d0c 0%, #000 65%);
   z-index: 1000;
   display: flex; flex-direction: column;
   font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
@@ -1230,64 +1510,85 @@ body.hide-sb-kbd .sb-item .kbd { display: none; }
 #boot-screen.fade-out { opacity: 0; pointer-events: none; }
 #boot-screen.hidden   { display: none; }
 
-/* scanline overlay */
+/* subtle grid — same as splash */
+#boot-screen::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(64,224,208,.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(64,224,208,.028) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none; z-index: 1;
+}
+/* scanlines */
 #boot-screen::after {
   content: '';
   position: absolute; inset: 0;
   background: repeating-linear-gradient(
     to bottom,
-    transparent 0px,
-    transparent 3px,
-    rgba(0,0,0,.13) 3px,
-    rgba(0,0,0,.13) 4px
+    transparent 0px, transparent 3px,
+    rgba(0,0,0,.15) 3px, rgba(0,0,0,.15) 4px
   );
-  pointer-events: none;
-  z-index: 2;
+  pointer-events: none; z-index: 2;
 }
 
 #boot-top {
   padding: 40px 52px 0;
   flex: 1;
   overflow: hidden;
+  position: relative; z-index: 3;
 }
+/* thin HUD accent line above title */
+#boot-top::before {
+  content: '';
+  position: absolute; top: 28px; left: 52px; right: 52px;
+  height: 1px;
+  background: linear-gradient(90deg,
+    rgba(64,224,208,.6) 0%, rgba(64,224,208,.2) 40%, transparent 100%);
+}
+
 #boot-logo {
-  font-size: 11px;
-  color: #00ff41;
-  letter-spacing: .18em;
+  font-size: 10px;
+  color: rgba(64,224,208,.52);
+  letter-spacing: .2em;
   text-transform: uppercase;
-  margin-bottom: 6px;
-  opacity: .6;
+  margin-bottom: 10px;
+  margin-top: 14px;
 }
 #boot-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #00ff41;
+  font-family: 'SpaceAge', 'JetBrains Mono', monospace;
+  font-size: 30px;
+  color: #40E0D0;
   letter-spacing: .06em;
-  text-shadow: 0 0 20px rgba(0,255,65,.5), 0 0 40px rgba(0,255,65,.2);
-  margin-bottom: 4px;
+  text-shadow:
+    0 0 16px rgba(64,224,208,.9),
+    0 0 40px rgba(64,224,208,.4),
+    0 0 80px rgba(64,224,208,.15);
+  margin-bottom: 6px;
 }
 #boot-sub {
-  font-size: 11px;
-  color: #00aa2b;
-  letter-spacing: .12em;
-  margin-bottom: 36px;
+  font-size: 10.5px;
+  color: rgba(64,224,208,.48);
+  letter-spacing: .13em;
+  margin-bottom: 32px;
 }
 #boot-divider {
   height: 1px;
-  background: linear-gradient(90deg, #00ff41, transparent);
-  margin-bottom: 24px;
-  opacity: .4;
+  background: linear-gradient(90deg, rgba(64,224,208,.6), rgba(64,224,208,.1) 60%, transparent);
+  margin-bottom: 22px;
+  opacity: .55;
 }
 #boot-log {
   font-size: 12px;
   line-height: 1.9;
-  color: #00cc35;
+  color: rgba(64,224,208,.65);
+  position: relative; z-index: 3;
 }
 .bl { display: block; white-space: pre; }
-.bl .bk { color: #555; }
-.bl .ok { color: #00ff41; }
-.bl .warn { color: #ffaa00; }
-.bl .err  { color: #ff4444; }
+.bl .bk { color: rgba(64,224,208,.28); }
+.bl .ok { color: #40E0D0; }
+.bl .warn { color: #FFB700; }
+.bl .err  { color: #ff5555; }
 .bl.cursor::after {
   content: '█';
   animation: bootBlink .8s step-end infinite;
@@ -1297,34 +1598,35 @@ body.hide-sb-kbd .sb-item .kbd { display: none; }
 }
 
 #boot-bottom {
-  padding: 24px 52px 36px;
-  border-top: 1px solid rgba(0,255,65,.15);
+  padding: 20px 52px 32px;
+  border-top: 1px solid rgba(64,224,208,.14);
+  position: relative; z-index: 3;
 }
 #boot-bar-label {
-  font-size: 10px;
-  color: #00aa2b;
-  letter-spacing: .1em;
+  font-size: 9.5px;
+  color: rgba(64,224,208,.45);
+  letter-spacing: .12em;
   margin-bottom: 8px;
 }
 #boot-bar-track {
-  height: 3px;
-  background: rgba(0,255,65,.15);
+  height: 2px;
+  background: rgba(64,224,208,.12);
   border-radius: 2px;
   overflow: hidden;
 }
 #boot-bar-fill {
   height: 100%;
   width: 0%;
-  background: #00ff41;
-  box-shadow: 0 0 8px #00ff41;
+  background: #40E0D0;
+  box-shadow: 0 0 10px rgba(64,224,208,.8), 0 0 20px rgba(64,224,208,.3);
   border-radius: 2px;
   transition: width .4s ease;
 }
 #boot-status {
-  font-size: 10px;
-  color: #555;
+  font-size: 9.5px;
+  color: rgba(64,224,208,.28);
   margin-top: 10px;
-  letter-spacing: .08em;
+  letter-spacing: .09em;
 }
 
 /* ============================================================
@@ -1588,6 +1890,15 @@ body.hide-sb-kbd .sb-item .kbd { display: none; }
 .tour-btn-next:hover { background: var(--ax-h); }
 
 /* ============================================================
+   SB LOG CAPTURE
+   ============================================================ */
+.sb-tab { display: none; }
+.sb-tab.on { display: block; }
+.sb-tab-btn { font-size: 11px; padding: 3px 10px; opacity: .6; }
+.sb-tab-btn.on { opacity: 1; background: var(--ax); color: #fff; border-color: var(--ax); }
+.sb-tab-btn:hover { opacity: 1; }
+
+/* ============================================================
    MISC
    ============================================================ */
 kbd, .kbd {
@@ -1785,26 +2096,33 @@ body.theme-light .term-ac            { background: #f0f4fa; border-color: #b8c8d
 body.theme-light .term-ac .ac-item:hover, body.theme-light .term-ac .ac-item.sel { background: #dce6f4; }
 body.theme-light .term-ac .ac-desc   { color: #7a8fa8; }
 
-/* ── Boot screen - Light (silver + chrome-blue) ─────────────────────────── */
-body.theme-light #boot-screen        { background: #f0f4fa; }
+/* ── Boot screen - Light (white + teal) ─────────────────────────────────── */
+body.theme-light #boot-screen        { background: #f0f9f9; }
+body.theme-light #boot-screen::before {
+  background-image:
+    linear-gradient(rgba(64,224,208,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(64,224,208,.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
 body.theme-light #boot-screen::after {
   background: repeating-linear-gradient(
     to bottom,
     transparent 0px, transparent 3px,
-    rgba(26,111,212,.04) 3px, rgba(26,111,212,.04) 4px
+    rgba(0,180,160,.05) 3px, rgba(0,180,160,.05) 4px
   );
 }
-body.theme-light #boot-logo          { color: #1a6fd4; opacity: .7; }
-body.theme-light #boot-title         { color: #1a6fd4; text-shadow: 0 0 20px rgba(26,111,212,.3), 0 0 40px rgba(26,111,212,.12); }
-body.theme-light #boot-sub           { color: #4a8fd4; }
-body.theme-light #boot-divider       { background: linear-gradient(90deg, #1a6fd4, transparent); opacity: .35; }
-body.theme-light #boot-log           { color: #2563b0; }
-body.theme-light .bl .bk             { color: #a0b4cc; }
-body.theme-light .bl .ok             { color: #1558b0; }
-body.theme-light #boot-bottom        { border-top-color: rgba(26,111,212,.2); }
-body.theme-light #boot-bar-label     { color: #4a8fd4; }
-body.theme-light #boot-bar-track     { background: rgba(26,111,212,.12); }
-body.theme-light #boot-bar-fill      { background: #1a6fd4; box-shadow: 0 0 8px rgba(26,111,212,.5); }
+body.theme-light #boot-top::before   { background: linear-gradient(90deg, rgba(0,160,150,.5), rgba(0,160,150,.15) 40%, transparent); }
+body.theme-light #boot-logo          { color: rgba(0,140,130,.65); }
+body.theme-light #boot-title         { color: #009688; text-shadow: 0 0 16px rgba(0,150,136,.3), 0 0 40px rgba(0,150,136,.12); }
+body.theme-light #boot-sub           { color: rgba(0,140,130,.55); }
+body.theme-light #boot-divider       { background: linear-gradient(90deg, rgba(0,150,136,.6), transparent); opacity: .5; }
+body.theme-light #boot-log           { color: rgba(0,120,110,.75); }
+body.theme-light .bl .bk             { color: rgba(0,140,130,.3); }
+body.theme-light .bl .ok             { color: #009688; }
+body.theme-light #boot-bottom        { border-top-color: rgba(0,150,136,.2); }
+body.theme-light #boot-bar-label     { color: rgba(0,140,130,.55); }
+body.theme-light #boot-bar-track     { background: rgba(0,150,136,.12); }
+body.theme-light #boot-bar-fill      { background: #009688; box-shadow: 0 0 8px rgba(0,150,136,.5); }
 body.theme-light #boot-status        { color: #8aa4c4; }
 
 /* Sandbox stripe stays yellow either way (it's a warning) */
@@ -2008,7 +2326,7 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
     <div class="tb-section">
       <span class="tb-label">SC</span>
       <select id="sc-type" class="tb-sel" onchange="onSCChange()" title="Syscon type">
-        <option>CXR</option><option>CXRF</option><option>SW</option>
+        <option>CXR</option><option>CXRF</option><option>SW</option><option>SB</option><option>PME/SS</option>
       </select>
       <span id="baud" class="tb-metric"><span class="v dim">57600</span></span>
     </div>
@@ -2019,8 +2337,6 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
     </div>
 
     <div class="tb-section flex" id="metrics">
-      <span class="tb-metric"><span class="l">Cell</span><span class="v dim" id="m-cell">-</span></span>
-      <span class="tb-metric"><span class="l">RSX</span><span class="v dim" id="m-rsx">-</span></span>
       <span class="tb-metric"><span class="l">Boots</span><span class="v dim" id="m-boots">-</span></span>
       <span class="tb-metric"><span class="l">Errs</span><span class="v dim" id="m-errs">-</span></span>
     </div>
@@ -2050,11 +2366,12 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
         <div class="sb-item"    data-wf="cxrf"   ><span class="ic">•</span>CXR -> CXRF Mod<span class="kbd">F2</span></div>
         <div class="sb-item"    data-wf="rsx"    ><span class="ic">•</span>RSX Autopatch<span class="kbd">F3</span></div>
         <div class="sb-item"    data-wf="health" ><span class="ic">•</span>Error &amp; System Diag<span class="kbd">F4</span></div>
-        <div class="sb-item"    data-wf="eeprom" ><span class="ic">•</span>EEPROM Inspector<span class="kbd">F5</span></div>
+        <div class="sb-item"    data-wf="eeprom" ><span class="ic">•</span>Checksum Corrector<span class="kbd">F5</span></div>
         <div class="sb-item"    data-wf="direct" ><span class="ic">•</span>Direct Commands<span class="kbd">F6</span></div>
         <div class="sb-item"    data-wf="fan"    ><span class="ic">•</span>Fan Tuning<span class="kbd">F7</span></div>
         <div class="sb-item"    data-wf="undervolt"><span class="ic">•</span>Undervolt<span class="kbd">F8</span></div>
         <div class="sb-item"    data-wf="gate"   ><span class="ic">•</span>Checksum Gate<span class="kbd">F9</span></div>
+        <div class="sb-item"    data-wf="sblog"  ><span class="ic">•</span>SB Log Capture</div>
       </nav>
       <div class="sb-section" style="padding-top:8px">Reference</div>
       <nav class="sb-list">
@@ -2102,7 +2419,7 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
                 <div class="k">Auth Status</div>   <div class="v" id="cn-auth">not authenticated</div>
               </div>
               <div class="row">
-                <button class="btn btn-pri" onclick="doAuth()">Authenticate <span class="kbd">A</span></button>
+                <button class="btn btn-pri" id="btn-auth" onclick="doAuth()">Authenticate <span class="kbd">A</span></button>
                 <button class="btn" onclick="refreshPorts()">Refresh Ports <span class="kbd">F5</span></button>
               </div>
               <div class="alert al-info">
@@ -2132,7 +2449,7 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
         <!-- ── WF: CXR -> CXRF ── -->
         <div class="wf" id="wf-cxrf">
           <div class="card">
-            <div class="card-h"><span class="ttl">Why convert CXR → CXRF?</span></div>
+            <div class="card-h"><span class="ttl">Why convert CXR -> CXRF?</span></div>
             <div class="card-b col">
               <div class="desc">PS3 Syscon chips ship from the factory in <strong>CXR mode</strong> (external clock). This is the default for unmodified consoles and locks out most diagnostic and patching functionality.<br><br><strong>CXRF mode</strong> (internal clock) unlocks the full feature set: RSX patching, EEPROM read/write, fan curve control, undervolting, and all other NostaDiag workflows. Virtually every repair and modification task requires CXRF mode.<br><br>This procedure writes a single EEPROM register to switch the Syscon from external to internal clock source, then corrects the checksum automatically. The change is reversible.</div>
               <div class="alert al-warn">
@@ -2177,14 +2494,14 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
             <div class="card-b col">
               <div class="row">
                 <button class="btn btn-pri" onclick="doHealthCheck()">Run Full Diagnostic <span class="kbd">F4</span></button>
-                <span class="muted" style="font-size:11px">Reads bsn · version · boardconfig · tsensor · becount · patchvereep · errlog</span>
+                <span class="muted" style="font-size:11px">CXRF: version · hversion · revision · disp_err · becount · patchvereep · errlog &nbsp;|&nbsp; CXR: version · becount · patchvereep · errlog</span>
               </div>
               <div class="tile-grid" id="hc-tiles">
-                <div class="tile"><div class="tl">Board Serial</div><div class="tv dim" id="hc-bsn">-</div></div>
                 <div class="tile"><div class="tl">FW Version</div><div class="tv dim" id="hc-version">-</div></div>
-                <div class="tile"><div class="tl">Board Config</div><div class="tv dim" id="hc-board">-</div></div>
+                <div class="tile"><div class="tl">HW Version <span style="font-size:9px;opacity:.5">CXRF</span></div><div class="tv dim" id="hc-hversion">-</div></div>
+                <div class="tile"><div class="tl">Revision <span style="font-size:9px;opacity:.5">CXRF</span></div><div class="tv dim" id="hc-revision">-</div></div>
                 <div class="tile"><div class="tl">Boot / Err Count</div><div class="tv dim" id="hc-becount">-</div></div>
-                <div class="tile"><div class="tl">Temperatures</div><div class="tv dim" id="hc-temps">-</div></div>
+                <div class="tile"><div class="tl">Disp Error <span style="font-size:9px;opacity:.5">CXRF</span></div><div class="tv dim" id="hc-disperr">-</div></div>
                 <div class="tile"><div class="tl">Patch Version</div><div class="tv dim" id="hc-pver">-</div></div>
               </div>
             </div>
@@ -2206,10 +2523,153 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
               </div>
             </div>
           </div>
+
+        </div>
+
+        <!-- ── WF: SB LOG CAPTURE ── -->
+        <div class="wf" id="wf-sblog">
+
+          <!-- Card 1: Activation -->
+          <div class="card">
+            <div class="card-h"><span class="ttl">Step 1 - Activate SB UART</span></div>
+            <div class="card-b col">
+              <div class="desc">The South Bridge UART is disabled by default. Select your Syscon hardware generation, then click <strong>Activate</strong>. This sends the enable command over an existing <strong>CXRF</strong> session - set SC-Type to CXRF, authenticate, then run this. Afterwards switch SC-Type to <strong>SB</strong> and start the capture.</div>
+
+              <div style="margin-top:10px">
+                <div style="font-size:11px;color:var(--t-3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Syscon Generation</div>
+                <div class="guide-opts">
+                  <div class="guide-opt" id="sb-gen-old" onclick="sbSelectGen('old')">
+                    <div class="guide-opt-name">Older Syscon</div>
+                    <div class="guide-opt-desc">Early FAT boards (90nm era)<br>COK-001 / DIA-001 / VER-001<br><code style="font-size:10px">w 7202 02</code></div>
+                  </div>
+                  <div class="guide-opt on" id="sb-gen-new" onclick="sbSelectGen('new')">
+                    <div class="guide-opt-name">Newer Syscon</div>
+                    <div class="guide-opt-desc">65nm / 45nm / Slim boards<br>SEM-001 / DYN-001 / JTP-001<br><code style="font-size:10px">w 4202 02</code></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="alert al-info" style="margin-top:10px">
+                <div class="ai">i</div>
+                <div class="at">For additional PME/SS Hypervisor log output, use the <strong>PME/SS Hypervisor Logging</strong> card below after activation - it selects the correct commands per Syscon variant.</div>
+              </div>
+
+              <div class="alert al-warn" style="margin-top:6px">
+                <div class="ai">!</div>
+                <div class="at">SC-Type must be set to <strong>CXRF</strong> and authenticated before running activation. Switch to SB mode only after this step completes.</div>
+              </div>
+
+              <div class="row" style="gap:8px;margin-top:10px">
+                <button class="btn btn-pri" id="sb-btn-activate" onclick="doSBActivate()">Activate SB UART</button>
+              </div>
+              <div id="sb-activate-status" style="margin-top:6px;display:none"></div>
+            </div>
+          </div>
+
+          <!-- Card 1b: PME/SS Hypervisor Logging -->
+          <div class="card">
+            <div class="card-h"><span class="ttl">PME/SS Hypervisor Logging <span class="badge">Optional</span></span></div>
+            <div class="card-b col">
+              <div class="desc">Enables additional hypervisor PME and SS log output on the SB UART. Send the enable commands via CXRF before switching to <strong>PME/SS</strong> SC-Type (38400 baud). Disable after use - leaving it enabled may prevent the console from booting.</div>
+              <div class="alert al-warn" style="margin-top:6px">
+                <div class="ai">!</div>
+                <div class="at">Disable PME/SS logging before rebooting normally. Requires CXRF authentication.</div>
+              </div>
+
+              <div style="margin-top:10px">
+                <div style="font-size:11px;color:var(--t-3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Syscon Variant</div>
+                <div class="guide-opts" style="grid-template-columns:1fr 1fr 1fr">
+                  <div class="guide-opt on" id="pmess-var-cxr713" onclick="pmessSelectVariant('cxr713')">
+                    <div class="guide-opt-name">CXR713 Mullion</div>
+                    <div class="guide-opt-desc">90nm FAT boards<br><em style="font-size:10px">except 203GB revision</em><br><code style="font-size:10px">w 72CF/72F0/72F1</code></div>
+                  </div>
+                  <div class="guide-opt" id="pmess-var-cxr714" onclick="pmessSelectVariant('cxr714')">
+                    <div class="guide-opt-name">CXR714 Mullion</div>
+                    <div class="guide-opt-desc">65nm FAT boards<br><em style="font-size:10px">+ CXR713-203GB</em><br><code style="font-size:10px">w 42CF/42F0/42F1</code></div>
+                  </div>
+                  <div class="guide-opt" id="pmess-var-sherwood" onclick="pmessSelectVariant('sherwood')">
+                    <div class="guide-opt-name">Sherwood</div>
+                    <div class="guide-opt-desc">Slim-era boards<br>&nbsp;<br><code style="font-size:10px">w 12CF/12F0/12F1</code></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row" style="gap:8px;margin-top:10px">
+                <button class="btn btn-pri" onclick="doPMESSSet(true)">Enable PME/SS Logging</button>
+                <button class="btn btn-danger" onclick="doPMESSSet(false)">Disable</button>
+              </div>
+              <div id="pmess-status" style="margin-top:6px;display:none"></div>
+            </div>
+          </div>
+
+          <!-- Card 2: Capture Controls -->
+          <div class="card">
+            <div class="card-h"><span class="ttl">Step 2 - Capture</span></div>
+            <div class="card-b col">
+              <div class="desc">Switch SC-Type to <strong>SB</strong>, power on the console, then start capture. The SB log streams automatically - stop it when the boot sequence is complete or the console shuts down.</div>
+              <div class="row" style="gap:8px;margin-top:8px">
+                <button class="btn btn-pri" id="sb-btn-start" onclick="doSBStart()">Start Capture</button>
+                <button class="btn" id="sb-btn-stop" onclick="doSBStop()" disabled>Stop</button>
+                <button class="btn" id="sb-btn-clear" onclick="doSBClear()">Clear</button>
+                <button class="btn" id="sb-btn-save" onclick="doSBSave()" disabled>Save Log</button>
+              </div>
+              <div id="sb-status-bar" class="alert al-info" style="margin-top:8px;display:none"></div>
+            </div>
+          </div>
+
+          <!-- Card 3: Live Capture View (3 tabs) -->
+          <div class="card">
+            <div class="card-h">
+              <span class="ttl">Live Output</span>
+              <div style="display:flex;gap:4px;margin-left:auto">
+                <button class="btn sb-tab-btn on" id="sb-tab-btn-text" onclick="sbSwitchTab('text')">Text</button>
+                <button class="btn sb-tab-btn" id="sb-tab-btn-hex" onclick="sbSwitchTab('hex')">Hex Dump</button>
+                <button class="btn sb-tab-btn" id="sb-tab-btn-analysis" onclick="sbSwitchTab('analysis')">Analysis</button>
+              </div>
+            </div>
+            <div class="card-b col" style="padding:0">
+              <div id="sb-tab-text" class="sb-tab on">
+                <pre id="sb-text-out" class="log-out" style="min-height:200px;max-height:400px;overflow-y:auto;margin:0;padding:10px;font-size:12px;white-space:pre-wrap;word-break:break-all"></pre>
+              </div>
+              <div id="sb-tab-hex" class="sb-tab">
+                <pre id="sb-hex-out" class="log-out" style="min-height:200px;max-height:400px;overflow-y:auto;margin:0;padding:10px;font-size:12px;white-space:pre"></pre>
+              </div>
+              <div id="sb-tab-analysis" class="sb-tab">
+                <div id="sb-analysis-out" style="min-height:200px;max-height:400px;overflow-y:auto;padding:10px"></div>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- ── WF: EEPROM ── -->
         <div class="wf" id="wf-eeprom">
+          <div class="card">
+            <div class="card-h"><span class="ttl">EEPROM Checksum Corrector</span></div>
+            <div class="card-b col">
+              <div class="desc">Reads the EEPROM checksum status via <code>eepcsum</code> and corrects all reported mismatches. Required after any patch operation that modifies EEPROM content. Values are byte-swapped before writing as required by the Syscon write protocol.</div>
+              <div class="row" style="gap:8px;margin-top:4px">
+                <button class="btn btn-pri" id="csum-scan-btn" onclick="doChecksumScan()">Scan Checksums</button>
+                <button class="btn btn-pri" id="csum-fix-btn" onclick="doChecksumFix()" disabled>Fix All</button>
+              </div>
+              <div id="csum-results" style="margin-top:10px;display:none"></div>
+              <div id="csum-status" style="margin-top:6px;display:none"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><span class="ttl">RSX Swap Checksum Fix</span></div>
+            <div class="card-b col">
+              <div class="desc">After an RSX swap patch, addresses <code>0x32FE</code> and <code>0x34FE</code> contain bytes in the wrong order. This reads the current values, byte-swaps them, writes them back and then verifies.</div>
+              <div class="alert al-warn" style="margin-top:6px"><div class="ai">!</div><div class="at">Only run this after a confirmed RSX swap operation. Do not run on unpatched consoles.</div></div>
+              <div class="row" style="gap:8px;margin-top:8px">
+                <button class="btn btn-pri" onclick="doRSXChecksumFix()">Read & Fix 0x32FE + 0x34FE</button>
+              </div>
+              <div id="rsx-csum-results" style="margin-top:8px;display:none"></div>
+            </div>
+          </div>
+
+          <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--t-3);text-transform:uppercase;padding:6px 2px 2px">EEPROM Inspector</div>
           <div class="card">
             <div class="card-h"><span class="ttl">What is the EEPROM Inspector?</span></div>
             <div class="card-b col">
@@ -2406,79 +2866,8 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
         <!-- ── WF: CHECKSUM GATE ── -->
         <!-- ── WF: UNDERVOLT ── -->
         <div class="wf" id="wf-undervolt">
-          <div class="card">
-            <div class="card-h">
-              <span class="ttl">Undervolt</span>
-              <span class="badge err">Use at your own risk</span>
-            </div>
-            <div class="card-b col">
-              <div class="alert al-err">
-                <div class="ai">!</div>
-                <div class="at"><strong>WARNING:</strong> Undervolting can cause system instability or damage. Use community-tested presets only. Test thoroughly after applying. Monitor for crashes and graphical artifacts.</div>
-              </div>
-              <div class="row">
-                <button class="btn on" id="uv-btn-auto"   onclick="uvSwitchMode('auto')">Auto Presets</button>
-                <button class="btn"    id="uv-btn-manual" onclick="uvSwitchMode('manual')">Manual Voltage</button>
-                <span class="grow"></span>
-                <button class="btn" onclick="showVoltageRanges()" title="Voltage ranges reference by DoublesAdvocat">Voltage Ranges</button>
-              </div>
-
-              <!-- ── Auto Presets ── -->
-              <div id="uv-auto">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
-                  <div class="tile" style="padding:14px">
-                    <div style="color:#cc0000;font-size:13px;font-weight:600;margin-bottom:10px">CELL (CPU)</div>
-                    <div style="display:flex;flex-direction:column;gap:6px">
-                      <label style="cursor:pointer"><input type="radio" name="uv-cell-nm" value="90nm" checked> 90nm CELL</label>
-                      <label style="cursor:pointer"><input type="radio" name="uv-cell-nm" value="65nm"> 65nm CELL</label>
-                      <label style="cursor:pointer"><input type="radio" name="uv-cell-nm" value="45nm"> 45nm CELL</label>
-                    </div>
-                    <div class="muted" style="font-size:10px;margin-top:10px;padding:6px;background:var(--bg-3);border-radius:4px">Lower voltage · Reduce heat · Extend life</div>
-                  </div>
-                  <div class="tile" style="padding:14px">
-                    <div style="color:var(--ax);font-size:13px;font-weight:600;margin-bottom:10px">RSX (GPU)</div>
-                    <div style="display:flex;flex-direction:column;gap:6px">
-                      <label style="cursor:pointer"><input type="radio" name="uv-rsx-nm" value="90nm" checked> 90nm RSX (CECHA/B)</label>
-                      <label style="cursor:pointer"><input type="radio" name="uv-rsx-nm" value="65nm"> 65nm RSX (CECHC/E/G)</label>
-                      <label style="cursor:pointer"><input type="radio" name="uv-rsx-nm" value="40nm"> 40nm RSX (CECHH/J/K)</label>
-                    </div>
-                    <div class="muted" style="font-size:10px;margin-top:10px;padding:6px;background:var(--bg-3);border-radius:4px">Chip-specific · Lower GPU temp · Test with games</div>
-                  </div>
-                </div>
-                <div class="row">
-                  <button class="btn" style="background:#cc0000;color:#fff;flex:1" onclick="doUndervolt('cell')">Apply CELL Undervolt</button>
-                  <button class="btn" style="background:var(--ax);color:#fff;flex:1"  onclick="doUndervolt('rsx')">Apply RSX Undervolt</button>
-                </div>
-                <div class="row" style="margin-top:4px">
-                  <label style="cursor:pointer;color:var(--warn)"><input type="checkbox" id="uv-reverse"> Reverse to Stock</label>
-                  <span class="muted" style="font-size:11px">Restores original factory voltage values</span>
-                </div>
-              </div>
-
-              <!-- ── Manual Voltage ── -->
-              <div id="uv-manual" style="display:none">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                  <div class="tile" style="padding:14px">
-                    <div style="color:#cc0000;font-size:13px;font-weight:600;margin-bottom:10px">CELL (CPU) Voltage</div>
-                    <input type="range" id="uv-cell-slider" min="0" max="61" value="24" style="width:100%;accent-color:#cc0000" oninput="uvSliderUpdate('cell')">
-                    <div style="text-align:center;margin-top:8px">
-                      <code id="uv-cell-display" style="font-size:14px;color:var(--ok)">1.1375V (0x1D)</code>
-                    </div>
-                    <button class="btn" style="background:#cc0000;color:#fff;width:100%;margin-top:10px" onclick="doUndervoltManual('cell')">Apply CELL</button>
-                  </div>
-                  <div class="tile" style="padding:14px">
-                    <div style="color:var(--ax);font-size:13px;font-weight:600;margin-bottom:10px">RSX (GPU) Voltage</div>
-                    <input type="range" id="uv-rsx-slider" min="0" max="61" value="28" style="width:100%;accent-color:var(--ax)" oninput="uvSliderUpdate('rsx')">
-                    <div style="text-align:center;margin-top:8px">
-                      <code id="uv-rsx-display" style="font-size:14px;color:var(--ok)">1.1875V (0x1B)</code>
-                    </div>
-                    <button class="btn" style="background:var(--ax);color:#fff;width:100%;margin-top:10px" onclick="doUndervoltManual('rsx')">Apply RSX</button>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
+          <div class="stepper" id="uv-stepper"></div>
+          <div id="uv-step-body"></div>
         </div>
 
         <div class="wf" id="wf-gate">
@@ -2512,7 +2901,7 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
         <div class="wf" id="wf-conn">
           <div class="card">
             <div class="card-h">
-              <span class="ttl">PS3 Serial Connection Points</span>
+              <span class="ttl">Syscon Serial Connection Points</span>
               <span class="badge" id="conn-badge">choose a model</span>
             </div>
             <div class="card-b">
@@ -2535,6 +2924,34 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
                   Identify your PS3 by the model number on the bottom sticker (e.g. <code>CECHA01</code>). The list maps model numbers to board revisions
                   and shows the corresponding UART testpads. Click the image to zoom in.
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h">
+              <span class="ttl">Southbridge Serial Connection</span>
+              <span class="badge" id="sb-conn-badge">choose a model</span>
+            </div>
+            <div class="card-b col">
+              <div class="desc">Testpad locations for the South Bridge UART connection. Required for SB Log Capture. Select your board revision to view the diagram.</div>
+              <div class="guide-opts" style="margin-top:10px">
+                <div class="guide-opt" id="sb-conn-cok1" onclick="selectSBConn('cok1')">
+                  <div class="guide-opt-name">COK-001</div>
+                  <div class="guide-opt-desc">CECHA · CECHB · CECHC · CECHE</div>
+                </div>
+                <div class="guide-opt" id="sb-conn-cok2" onclick="selectSBConn('cok2')">
+                  <div class="guide-opt-name">COK-002</div>
+                  <div class="guide-opt-desc">CECHA · CECHB · CECHC · CECHE (rev.2)</div>
+                </div>
+              </div>
+              <div class="conn-img-wrap" id="sb-conn-img-wrap" style="margin-top:10px;display:none">
+                <div class="conn-img-head">
+                  <span id="sb-conn-title" class="muted"></span>
+                  <span class="grow"></span>
+                  <button class="btn btn-sm" onclick="zoomSBConnImg()">Toggle zoom</button>
+                </div>
+                <div class="conn-img-area" id="sb-conn-img-area"></div>
               </div>
             </div>
           </div>
@@ -2624,7 +3041,7 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
                   <div style="font-size:13px;font-weight:700;color:var(--t-1);margin-bottom:2px">Buy me a coffee</div>
                   <div style="font-size:11px;color:var(--t-2)">NostaDiag is free, but your support keeps the PS3 modding tools coming. Every coffee counts - thank you!</div>
                 </div>
-                <div style="font-size:11px;font-weight:600;color:var(--acc);white-space:nowrap">ko-fi.com/jw0710 →</div>
+                <div style="font-size:11px;font-weight:600;color:var(--acc);white-space:nowrap">ko-fi.com/jw0710 -></div>
               </div>
 
               <div style="padding:14px;background:var(--bg-2);border-radius:var(--r-3);border:1px solid var(--bd-1);text-align:center">
@@ -2804,12 +3221,49 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
   </div>
 </div>
 
+<!-- ── ENGINEERING PREVIEW SPLASH ── -->
+<div id="splash-screen">
+  <!-- HUD corner brackets -->
+  <div class="sp-corner tl"></div>
+  <div class="sp-corner tr"></div>
+  <div class="sp-corner bl"></div>
+  <div class="sp-corner br"></div>
+  <!-- Frame bars -->
+  <div id="splash-topbar"></div>
+  <div id="splash-botbar"></div>
+  <!-- Corner data readouts -->
+  <div class="sp-cdata tl">NOSTAMOD-DS 2.03<br>SYS .......... OK</div>
+  <div class="sp-cdata tr">BUILD 20260517<br>CLASS ....... A1</div>
+  <div class="sp-cdata bl">UART ...... READY<br>PORT .. SCANNING</div>
+  <div class="sp-cdata br">AUTH ..... LOCKED<br>MODE ....... DIAG</div>
+  <!-- Scanner beam -->
+  <div id="splash-scan"></div>
+  <!-- Main content -->
+  <div id="splash-inner">
+    <div id="splash-company">NostaMods Diagnostic Systems</div>
+    <div id="splash-ep">Engineering Preview</div>
+    <div id="splash-ep-sub">PS3 Syscon Workbench &nbsp;▪&nbsp; UART Diagnostic Interface</div>
+    <div id="splash-divline"></div>
+    <div id="splash-warn">
+      <span id="splash-warn-icon">⚠</span>
+      <span id="splash-warn-text">Use with Caution</span>
+    </div>
+    <div id="splash-build">Build 2.03 &nbsp;▪&nbsp; Restricted Distribution &nbsp;▪&nbsp; Internal Use Only</div>
+    <div id="splash-status">
+      <div class="sp-stat"><span class="sp-dot"></span>SYSCON COMMS</div>
+      <div class="sp-stat"><span class="sp-dot"></span>EEPROM ENGINE</div>
+      <div class="sp-stat"><span class="sp-dot"></span>AUTH MODULE</div>
+      <div class="sp-stat"><span class="sp-dot"></span>UART DRIVER</div>
+    </div>
+  </div>
+</div>
+
 <!-- ── BOOT SCREEN ── -->
 <div id="boot-screen">
   <div id="boot-top">
     <div id="boot-logo">NostaMods Diagnostic Systems</div>
     <div id="boot-title">NOSTADIAG</div>
-    <div id="boot-sub">PS3 SYSCON WORKBENCH  ·  v2.0  ·  UART DIAGNOSTIC INTERFACE</div>
+    <div id="boot-sub">PS3 SYSCON WORKBENCH  ·  v2.03  ·  UART DIAGNOSTIC INTERFACE</div>
     <div id="boot-divider"></div>
     <div id="boot-log"></div>
   </div>
@@ -2829,7 +3283,7 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
       <!-- Step 1: Welcome -->
       <div class="guide-step active" id="guide-s0">
         <span class="guide-icon">NostaDiag</span>
-        <div class="guide-title">Welcome to NostaDiag v2.0</div>
+        <div class="guide-title">Welcome to NostaDiag v2.03</div>
         <div class="guide-text">
           A diagnostic workbench for PS3 Syscon chips.<br><br>
           Read error logs, patch RSX chips, inspect EEPROM memory,
@@ -2843,7 +3297,7 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
         <span class="guide-icon">Appearance</span>
         <div class="guide-title">Dark or Light Mode?</div>
         <div class="guide-text">
-          Pick the look that suits you best. You can change this at any time under <strong>Settings → Appearance</strong>.
+          Pick the look that suits you best. You can change this at any time under <strong>Settings -> Appearance</strong>.
         </div>
         <div class="guide-opts">
           <div class="guide-opt" data-theme="light" onclick="guideSetTheme(true)">
@@ -2862,7 +3316,7 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
         <span class="guide-icon">Sidebar</span>
         <div class="guide-title">Show F-Key shortcuts?</div>
         <div class="guide-text">
-          Each sidebar entry can show its keyboard shortcut (F1-F12) on the right. Handy while learning - or turn them off for a cleaner look. Changeable at any time in <strong>Settings → Appearance</strong>.
+          Each sidebar entry can show its keyboard shortcut (F1-F12) on the right. Handy while learning - or turn them off for a cleaner look. Changeable at any time in <strong>Settings -> Appearance</strong>.
         </div>
         <div class="guide-opts">
           <div class="guide-opt" data-sbkbd="yes" onclick="guideSbKbd(true)">
@@ -2884,8 +3338,8 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
           Select your <code>COM port</code> and <code>Syscon type</code>
           in the top bar, then hit <strong>Authenticate</strong>.<br><br>
           Not sure which type?<br>
-          <code>CXR</code> / <code>SW</code> → 57600 baud &nbsp;·&nbsp;
-          <code>CXRF</code> → 115200 baud<br><br>
+          <code>CXR</code> / <code>SW</code> -> 57600 baud &nbsp;·&nbsp;
+          <code>CXRF</code> -> 115200 baud<br><br>
           The <strong>terminal on the right</strong> shows all live output.
           Use <kbd>/</kbd> to focus it and type commands directly.
         </div>
@@ -2904,7 +3358,7 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
           <div class="guide-chip"><span class="ic">•</span>EEPROM Inspector</div>
           <div class="guide-chip"><span class="ic">•</span>Fan Tuning</div>
           <div class="guide-chip"><span class="ic">•</span>Undervolt</div>
-          <div class="guide-chip"><span class="ic">•</span>CXR → CXRF Mod</div>
+          <div class="guide-chip"><span class="ic">•</span>CXR -> CXRF Mod</div>
         </div>
       </div>
 
@@ -2917,9 +3371,9 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
           then explore the workflows.<br><br>
           Need help?
           <ul style="margin:10px 0 0 18px;display:flex;flex-direction:column;gap:5px">
-            <li><code>F6</code> → Direct Commands reference</li>
-            <li><code>F11</code> → Error Codes database</li>
-            <li><code>F12</code> → Settings &amp; keyboard shortcuts</li>
+            <li><code>F6</code> -> Direct Commands reference</li>
+            <li><code>F11</code> -> Error Codes database</li>
+            <li><code>F12</code> -> Settings &amp; keyboard shortcuts</li>
           </ul>
         </div>
       </div>
@@ -2928,7 +3382,7 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
     <div id="guide-footer">
       <button id="guide-skip" onclick="guideSkip()">Skip guide</button>
       <div class="guide-dots" id="guide-dots"></div>
-      <button id="guide-next" onclick="guideNext()">Next →</button>
+      <button id="guide-next" onclick="guideNext()">Next -></button>
     </div>
   </div>
 </div>
@@ -2945,7 +3399,7 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
       <span class="tour-tip-count" id="tour-count"></span>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="tour-btn-skip" onclick="tourEnd()">Skip tour</button>
-        <button class="tour-btn-next" id="tour-next-btn" onclick="tourNext()">Next →</button>
+        <button class="tour-btn-next" id="tour-next-btn" onclick="tourNext()">Next -></button>
       </div>
     </div>
   </div>
@@ -2974,13 +3428,14 @@ const state = {
   hexSel: -1,
   cxrfStep: 0,
   rsxStep: 0,
+  uvStep: 0,
 };
 
 const port = () => document.getElementById('port-sel').value;
 const sc   = () => document.getElementById('sc-type').value;
 const api  = () => window.pywebview ? window.pywebview.api : null;
 
-const baud = (t) => t === 'CXRF' ? '115200' : '57600';
+const baud = (t) => (t === 'CXRF' || t === 'SB') ? '115200' : t === 'PME/SS' ? '38400' : '57600';
 
 /* ════════════════════════════════════════════════════════════
    COMMAND DICTIONARY (autocomplete + reference)
@@ -3047,13 +3502,15 @@ window.addEventListener('load', () => {
   buildFan();
   buildCXRFSteps();
   buildRSXSteps();
+  buildUVSteps();
   setupKeyboard();
   setupSidebar();
   setupTerm();
   setupResizer();
   refreshSettingsView();
   updateAuthGate();
-  termWrite('NostaDiag - PS3 Syscon Workbench v2.0', 'dim');
+  updateSBMode();
+  termWrite('NostaDiag - PS3 Syscon Workbench v2.03', 'dim');
   termWrite('Waiting for backend bridge…', 'dim');
 });
 
@@ -3117,15 +3574,16 @@ const WF_META = {
   cxrf:     ['CXR -> CXRF Modification',   'Guided procedure to convert a CXR Mullion Syscon to CXRF mode.'],
   rsx:      ['RSX Autopatch',             'RSX Patch for RSX Swaps and Frankenstein Builds. Auth required.'],
   health:   ['Error and System Diagnostic', 'Reads errlog, BSN, version, board config, temperatures, boot count and patch version in a single pass.'],
-  eeprom:   ['EEPROM Inspector',          'Read and edit Syscon memory in a hex grid.'],
+  eeprom:   ['Checksum Corrector',         'Correct EEPROM checksums and inspect memory. Required after any patch operation.'],
   direct:   ['Direct Commands',           'Send arbitrary UART commands. Reference table on the right.'],
   fan:        ['Fan Curve Tuning',          'Adjust per-chip 10-phase fan tables (CXRF / FAT only).'],
-  undervolt:  ['Undervolt',               'Apply community-tested CELL/RSX voltage presets or set a manual voltage. CXRF only.'],
+  undervolt:  ['Undervolt',               'Guided workflow to apply community-tested CELL/RSX voltage presets with automatic checksum correction.'],
   gate:       ['Checksum Gate Toggle',    'Read or modify byte at 0x3292. Professional use only.'],
   conn:       ['PS3 Serial Connection Guide', 'Solder/testpad locations for every PS3 board revision.'],
   errors:     ['PS3 Error Code Reference',  'Searchable database of known Syscon and console error codes.'],
   settings:   ['Settings',                'Appearance, session preferences, keyboard reference.'],
   credits:    ['Credits',                 'Thanks to the researchers and contributors who made this tool possible.'],
+  sblog:      ['SB UART Log Capture',    'Passively capture and analyse raw South Bridge boot log output.'],
 };
 
 function setupSidebar() {
@@ -3137,10 +3595,38 @@ function setupSidebar() {
 // Workflows that require a successful authentication before use
 const AUTH_REQUIRED = new Set(['cxrf','rsx','health','eeprom','direct','fan','undervolt','gate']);
 
+// Workflows excluded when SC-Type is SB (SB mode is capture-only)
+const SB_EXCLUDED = new Set(['connect','cxrf','rsx','health','eeprom','direct','fan','undervolt','gate']);
+
+// Workflows blocked in CXR mode — only cxrf patch and direct commands are allowed
+const CXR_EXCLUDED = new Set(['rsx','health','eeprom','fan','undervolt','gate']);
+
+function updateSBMode() {
+  const isSB = sc() === 'SB' || sc() === 'PME/SS';
+  document.querySelectorAll('.sb-item[data-wf]').forEach(el => {
+    const wf = el.dataset.wf;
+    if (SB_EXCLUDED.has(wf)) {
+      const authLock = AUTH_REQUIRED.has(wf) && !state.isAuth;
+      const locked = isSB || authLock;
+      el.classList.toggle('sb-locked', locked);
+      if (isSB)           el.title = 'Not available in ' + sc() + ' mode';
+      else if (authLock)  el.title = 'Authentication required';
+      else                el.title = '';
+    }
+  });
+  const authBtn = document.getElementById('btn-auth');
+  if (authBtn) { authBtn.disabled = isSB; authBtn.style.opacity = isSB ? '.4' : ''; }
+}
+
 function switchWorkflow(id) {
-  if (AUTH_REQUIRED.has(id) && !state.isAuth) {
+  if (sc() === 'SB' && SB_EXCLUDED.has(id)) {
+    toast('Switch SC-Type away from SB to use Syscon workflows.', 'warn');
+    id = 'sblog';
+  } else if (sc() === 'CXR' && CXR_EXCLUDED.has(id)) {
+    toast('Switch SC-Type to CXRF to use this feature.', 'warn');
+    id = 'connect';
+  } else if (AUTH_REQUIRED.has(id) && !state.isAuth) {
     toast('Authentication required - authenticate on the Connect & Auth screen first.', 'err');
-    // Navigate to connect screen so the user knows what to do
     id = 'connect';
   }
   state.currentWf = id;
@@ -3150,21 +3636,28 @@ function switchWorkflow(id) {
   document.getElementById('ws-title').innerHTML    = meta[0];
   document.getElementById('ws-subtitle').innerHTML = meta[1];
 
-  if (id === 'connect') refreshConnectView();
-  if (id === 'cxrf')    renderCXRFStep();
-  if (id === 'rsx')     renderRSXStep();
-  if (id === 'gate')    document.getElementById('gate-cur').textContent = 'unknown';
+  if (id === 'connect')    refreshConnectView();
+  if (id === 'cxrf')       renderCXRFStep();
+  if (id === 'rsx')        renderRSXStep();
+  if (id === 'undervolt')  renderUVStep();
+  if (id === 'gate')       document.getElementById('gate-cur').textContent = 'unknown';
   if (id === 'conn')    renderConnList();
   if (id === 'errors')  { renderErrorList(); }
   if (id === 'settings') refreshSettingsView();
+  if (id === 'sblog')   refreshSBLogView();
 }
 
 function updateAuthGate() {
+  const isCXR = sc() === 'CXR';
   document.querySelectorAll('.sb-item[data-wf]').forEach(el => {
     const wf = el.dataset.wf;
-    const locked = AUTH_REQUIRED.has(wf) && !state.isAuth;
+    const cxrLocked  = isCXR && CXR_EXCLUDED.has(wf);
+    const authLocked = AUTH_REQUIRED.has(wf) && !state.isAuth;
+    const locked = cxrLocked || authLocked;
     el.classList.toggle('sb-locked', locked);
-    el.title = locked ? 'Authentication required' : '';
+    if (cxrLocked)       el.title = 'Requires CXRF mode';
+    else if (authLocked) el.title = 'Authentication required';
+    else                 el.title = '';
   });
 }
 
@@ -3209,11 +3702,16 @@ function refreshPorts() {
 }
 
 function onSCChange() {
-  document.querySelector('#baud .v').textContent = baud(sc());
+  const t = sc();
+  document.querySelector('#baud .v').textContent = baud(t);
   refreshConnectView();
   state.isAuth = false;
   updateAuthPill();
-  termWrite('SC type -> ' + sc() + ' (' + baud(sc()) + ' baud)', 'dim');
+  updateSBMode();
+  updateAuthGate();
+  termWrite('SC type -> ' + t + ' (' + baud(t) + ' baud)', 'dim');
+  if (t === 'SB' || t === 'PME/SS') switchWorkflow('sblog');
+  else if (t === 'CXR' && CXR_EXCLUDED.has(state.currentWf)) switchWorkflow('connect');
 }
 
 function onSandboxToggle() {
@@ -3247,7 +3745,12 @@ function updateConnPill() {
 function updateAuthPill() {
   const p = document.getElementById('auth-pill');
   const f = document.getElementById('tf-auth');
-  if (state.isAuth) {
+  const t = sc();
+  if (t === 'SB' || t === 'PME/SS') {
+    const lbl = 'No Auth (' + t + ')';
+    p.className = 'tb-pill dim'; p.querySelector('span:last-child').textContent = lbl;
+    f.classList.remove('live'); f.querySelector('span:last-child').textContent = lbl;
+  } else if (state.isAuth) {
     p.className = 'tb-pill ok';  p.querySelector('span:last-child').textContent = 'Authenticated';
     f.classList.add('live');     f.querySelector('span:last-child').textContent = 'Authenticated';
   } else {
@@ -3275,8 +3778,9 @@ function onAuthOK() {
   refreshConnectView();
   setTermMode('ready');
   toast('Authentication successful', 'ok');
-  if (state.currentWf === 'cxrf') renderCXRFStep();
-  if (state.currentWf === 'rsx')  renderRSXStep();
+  if (state.currentWf === 'cxrf')      renderCXRFStep();
+  if (state.currentWf === 'rsx')       renderRSXStep();
+  if (state.currentWf === 'undervolt') renderUVStep();
   if (sc() === 'CXR') {
     termWrite('Console is in CXR mode. To use RSX patching or fan control, your console needs to be converted to CXRF mode first.', 'warn');
     termWrite('Go to: CXR -> CXRF (sidebar) to patch your console.', 'warn');
@@ -3326,6 +3830,20 @@ function onPowerChange(running) {
 }
 
 /* ════════════════════════════════════════════════════════════
+   BUZZER
+   ════════════════════════════════════════════════════════════ */
+function doBuzz(freq, pattern, count) {
+  const a = api(); if (!a) return;
+  a.buzz_pattern(port(), sc(), freq, pattern, count);
+}
+function doBuzzManual() {
+  const freq    = parseInt(document.getElementById('buzz-freq').value)    || 440;
+  const pattern = parseInt(document.getElementById('buzz-pattern').value) || 1;
+  const count   = parseInt(document.getElementById('buzz-count').value)   || 1;
+  doBuzz(freq, pattern, count);
+}
+
+/* ════════════════════════════════════════════════════════════
    HEALTH CHECK
    ════════════════════════════════════════════════════════════ */
 function doHealthCheck() {
@@ -3333,7 +3851,7 @@ function doHealthCheck() {
   if (!a) return;
   document.getElementById('hc-status').textContent = 'running…';
   document.getElementById('hc-status').className = 'badge warn';
-  ['hc-bsn','hc-version','hc-board','hc-becount','hc-temps','hc-pver'].forEach(id => {
+  ['hc-version','hc-hversion','hc-revision','hc-becount','hc-disperr','hc-pver'].forEach(id => {
     const el = document.getElementById(id);
     el.innerHTML = '<span class="spinner"></span>';
     el.className = 'tv dim';
@@ -3348,20 +3866,60 @@ function firstLine(s) {
   return lines[0] || s;
 }
 
+/* ── Health data parsers ── */
+function hcStrip(raw) {
+  // Strip 8-char hex return code prefix and UART shell prompts from responses
+  if (!raw) return '-';
+  const s = String(raw)
+    .replace(/^[0-9a-fA-F]{8}\s*/, '')   // strip "00000000 " prefix
+    .replace(/\[mullion\]\$\s*/gi, '')    // strip [mullion]$ prompt
+    .replace(/\[ps3\]\$\s*/gi, '')        // strip [ps3]$ prompt
+    .replace(/PS3:\/[^\$]*\$\s*/g, '')    // strip PS3:/# prompt
+    .trim();
+  return s || '-';
+}
+
+function hcParseDispErr(raw) {
+  if (!raw) return '-';
+  const s = hcStrip(raw);
+  if (!s || s === '-') return '-';
+  // "00" or "0x00000000" means no error
+  if (/^(0x)?0+$/i.test(s)) return 'OK';
+  return s;
+}
+
+
+function hcParseBecount(raw) {
+  if (!raw) return '-';
+  const s   = hcStrip(raw);
+  const b   = s.match(/Bringup:(\d+)/);
+  const d   = s.match(/Shutdown:(\d+)/);
+  const t   = s.match(/PowerOnTime:(\d+)s/);
+  const out = [];
+  if (b) out.push('Boot ' + b[1]);
+  if (d) out.push('Shutdown ' + d[1]);
+  if (t) {
+    const days = parseInt(t[1]) / 86400;
+    out.push((days >= 1 ? days.toFixed(1) + 'd' : Math.round(days * 24) + 'h') + ' on');
+  }
+  return out.length ? out.join('  ·  ') : s;
+}
+
 function onHealthData(data) {
-  const set = (id, val, cls) => {
+  const set = (id, display, raw, cls) => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.textContent = firstLine(val).slice(0, 60);
-    el.className = 'tv ' + (cls || '');
-    el.title = val || '';
+    const ok = display && display !== '-';
+    el.textContent = display || '-';
+    el.className   = 'tv ' + (cls || (ok ? 'ok' : 'dim'));
+    el.title       = raw || display || '';
   };
-  set('hc-bsn',     data.bsn,          'ok');
-  set('hc-version', data.version,      'ok');
-  set('hc-board',   data.boardconfig,  'ok');
-  set('hc-becount', data.becount,      'ok');
-  set('hc-temps',   data.temperatures, 'ok');
-  set('hc-pver',    data.patchver,     'ok');
+  set('hc-version',  hcStrip(data.version),          data.version);
+  set('hc-hversion', hcStrip(data.hversion),         data.hversion);
+  set('hc-revision', hcStrip(data.revision),         data.revision);
+  set('hc-becount',  hcParseBecount(data.becount),   data.becount);
+  set('hc-disperr',  hcParseDispErr(data.disp_err),  data.disp_err);
+  set('hc-pver',     hcStrip(data.patchver),         data.patchver);
 
   // errlog with annotations
   const errEl = document.getElementById('hc-errlog');
@@ -3397,37 +3955,28 @@ function onHealthData(data) {
   }
 
   // top metrics
-  parseMetrics(data);
+  parseMetrics(data, errCount);
 
   document.getElementById('hc-status').textContent = 'done';
   document.getElementById('hc-status').className   = 'badge ok';
   toast('Health check complete', 'ok');
 }
 
-function parseMetrics(data) {
-  // becount: try to parse "Boots: N Errors: M"
-  const bc = (data.becount || '').match(/(\d+)\D+(\d+)/);
-  if (bc) {
-    document.getElementById('m-boots').textContent = bc[1];
-    document.getElementById('m-boots').className = 'v';
-    const errN = parseInt(bc[2]);
+function parseMetrics(data, errCount) {
+  // Boot count - parse "Bringup:N" from becount/bestat
+  const bc  = data.becount || '';
+  const bUp = bc.match(/Bringup:(\d+)/);
+  if (bUp) {
+    document.getElementById('m-boots').textContent = bUp[1];
+    document.getElementById('m-boots').className   = 'v';
+  }
+  // Error count comes from errlog analysis (passed in from onHealthData)
+  if (errCount !== undefined) {
     const eEl = document.getElementById('m-errs');
-    eEl.textContent = bc[2];
-    eEl.className = 'v ' + (errN > 0 ? 'w' : 'ok');
-  }
-  const ts = data.temperatures || '';
-  const cMatch = ts.match(/CELL[:\s]+(\d+)/i) || ts.match(/(\d+)\s*°?C\s*RSX/i);
-  const rMatch = ts.match(/RSX[:\s]+(\d+)/i);
-  if (cMatch) {
-    document.getElementById('m-cell').textContent = cMatch[1] + '°';
-    document.getElementById('m-cell').className   = 'v ' + tempCls(parseInt(cMatch[1]));
-  }
-  if (rMatch) {
-    document.getElementById('m-rsx').textContent = rMatch[1] + '°';
-    document.getElementById('m-rsx').className   = 'v ' + tempCls(parseInt(rMatch[1]));
+    eEl.textContent = errCount;
+    eEl.className   = 'v ' + (errCount > 0 ? 'w' : 'ok');
   }
 }
-function tempCls(t) { return t < 60 ? 'ok' : (t < 75 ? 'w' : 'e'); }
 
 /* ════════════════════════════════════════════════════════════
    CXR -> CXRF WORKFLOW
@@ -3578,10 +4127,11 @@ function cxrfChecksum() {
    RSX PATCH WORKFLOW
    ════════════════════════════════════════════════════════════ */
 const RSX_STEPS = [
-  { id: 'select', label: 'Select chip' },
-  { id: 'confirm',label: 'Confirm' },
-  { id: 'apply',  label: 'Apply patch' },
-  { id: 'done',   label: 'Done' },
+  { id: 'select',   label: 'Select chip' },
+  { id: 'confirm',  label: 'Confirm' },
+  { id: 'apply',    label: 'Apply patch' },
+  { id: 'checksum', label: 'Fix checksums' },
+  { id: 'done',     label: 'Done' },
 ];
 const RSX_STATE = { variant: null }; // '40nm-std', '40nm-ggb', '65nm'
 
@@ -3628,7 +4178,7 @@ function renderRSXStep() {
             <input type="radio" name="rsx-var" value="65nm" onchange="RSX_STATE.variant=this.value;renderRSXStep()" ${RSX_STATE.variant === '65nm' ? 'checked' : ''}>
             <div><strong>65nm RSX</strong> - most common 65nm boards · writes 0x3242 / 0x3254 = 0xE8</div>
           </label>
-          <label class="card" style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-color:rgba(251,191,36,.4)">
+          <label class="card" style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;opacity:.6">
             <input type="radio" name="rsx-var" value="90nm-exp" onchange="RSX_STATE.variant=this.value;renderRSXStep()" ${RSX_STATE.variant === '90nm-exp' ? 'checked' : ''}>
             <div>
               <strong>90nm RSX - Standard</strong> (COK-001 / COK-002) · writes 0x3254 = 0xE4
@@ -3665,11 +4215,25 @@ function renderRSXStep() {
       <div class="card-b col">
         <div class="row"><span class="spinner"></span><span>Watch the terminal for progress. Each command is verified.</span></div>
       </div></div>`;
+  } else if (id === 'checksum') {
+    html = `
+      <div class="card"><div class="card-h"><span class="ttl">Step 4 - Checksum Correction</span></div>
+      <div class="card-b col">
+        <div class="desc">After patching, EEPROM checksums must be corrected. This runs <code>eepcsum</code> to fix all mismatches, then corrects the byte order at <code>0x32FE</code> and <code>0x34FE</code> which are specifically affected by the RSX swap.</div>
+        <div class="alert al-warn"><div class="ai">!</div><div class="at">Do not power-cycle the console before completing this step - a 3-beep error on boot indicates a bad checksum.</div></div>
+        <div class="row" style="gap:8px;margin-top:10px">
+          <button class="btn btn-pri" id="rsx-postcsum-btn" onclick="doRSXPostPatchChecksum()">Run Checksum Corrections</button>
+        </div>
+        <div id="rsx-postcsum-results" style="margin-top:8px;display:none"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="rsx-postcsum-continue" onclick="rsxNext()" disabled>Continue -></button>
+        </div>
+      </div></div>`;
   } else if (id === 'done') {
     html = `
       <div class="card"><div class="card-h"><span class="ttl">Done</span><span class="badge ok">success</span></div>
       <div class="card-b col">
-        <div class="alert al-ok"><div class="ai">✓</div><div class="at">RSX patch applied successfully. Power-cycle the console and test under load.</div></div>
+        <div class="alert al-ok"><div class="ai">✓</div><div class="at">RSX patch and checksum correction complete. Power-cycle the console and test under load.</div></div>
         <div class="row">
           <button class="btn" onclick="RSX_STATE.variant=null;state.rsxStep=0;renderRSXStep()">Restart workflow</button>
         </div>
@@ -3706,6 +4270,47 @@ function rsxApply() {
   a.patch_rsx(port(), sc(), nm, model);
 }
 
+function doRSXPostPatchChecksum() {
+  const a = api(); if (!a) return toast('Backend not ready', 'err');
+  const btn = document.getElementById('rsx-postcsum-btn');
+  if (btn) btn.disabled = true;
+  document.getElementById('rsx-postcsum-results').style.display = 'none';
+  a.rsx_post_patch_checksum(port(), sc());
+}
+
+function onRSXPostPatchChecksum(result) {
+  if (state.currentWf === 'undervolt') { onUVChecksumDone(result); return; }
+  const btn  = document.getElementById('rsx-postcsum-btn');
+  const res  = document.getElementById('rsx-postcsum-results');
+  const cont = document.getElementById('rsx-postcsum-continue');
+  if (btn) btn.disabled = false;
+  if (!res) return;
+  res.style.display = '';
+
+  if (!result.ok) {
+    res.innerHTML = `<div class="alert al-err"><div class="ai">✕</div><div class="at">Error: ${result.error}</div></div>`;
+    return;
+  }
+
+  let html = '';
+  let allOk = true;
+  result.log.forEach(e => {
+    if (e.type === 'eep') {
+      html += `<div class="alert ${e.ok?'al-ok':'al-err'}" style="margin-bottom:4px"><div class="ai">${e.ok?'✓':'✕'}</div><div class="at"><code>${e.cmd}</code> ${e.ok?'corrected':'failed'}</div></div>`;
+      if (!e.ok) allOk = false;
+    } else if (e.type === 'eep_ok') {
+      html += `<div class="alert al-ok" style="margin-bottom:4px"><div class="ai">✓</div><div class="at">No general EEPROM checksum mismatches found.</div></div>`;
+    } else if (e.type === 'rsx') {
+      html += `<div class="alert al-ok" style="margin-bottom:4px"><div class="ai">✓</div><div class="at"><code>0x${e.addr}</code>: <span style="font-family:var(--mono)">${e.before}</span> -> <span style="font-family:var(--mono);color:var(--ax)">${e.after}</span></div></div>`;
+    } else if (e.type === 'rsx_err') {
+      html += `<div class="alert al-warn" style="margin-bottom:4px"><div class="ai">!</div><div class="at"><code>0x${e.addr}</code>: ${e.msg}</div></div>`;
+    }
+  });
+  res.innerHTML = html;
+  if (cont) cont.disabled = false;
+  toast(allOk ? 'Checksums corrected' : 'Some corrections failed - check results', allOk ? 'ok' : 'warn');
+}
+
 function onPatchDone(ok, msg) {
   if (state.currentWf === 'rsx') {
     if (ok) {
@@ -3721,6 +4326,492 @@ function onPatchDone(ok, msg) {
   }
   toast(msg, ok ? 'ok' : 'err');
 }
+
+/* ════════════════════════════════════════════════════════════
+   UNDERVOLT WORKFLOW
+   ════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════
+   UNDERVOLT WORKFLOW
+   ════════════════════════════════════════════════════════════ */
+
+const UV_STEPS = [
+  { id: 'select',    label: 'Select chip' },
+  { id: 'configure', label: 'Configure' },
+  { id: 'confirm',   label: 'Confirm' },
+  { id: 'apply',     label: 'Apply' },
+  { id: 'checksum',  label: 'Fix checksums' },
+  { id: 'done',      label: 'Done' },
+];
+
+// configMode: 'preset' | 'manual'
+// manualVid: hex string e.g. '1D'
+const UV_STATE = { chip: null, nm: null, mode: 'undervolt', configMode: 'preset', manualVid: null };
+
+// ── Mullion Vcore VID lookup table (source: Mullion Vcore VID table.xlsx)
+// [voltage × 10000 (integer, exact), 'VID_hex']  sorted ascending by voltage
+const UV_VID_TABLE = [
+  // NCP5318 VRD10 — complete table, 62 active entries, 12.5 mV steps (source: Mullion Vcore VID table.xlsx)
+  // [voltage × 10000, 'VID_hex']  sorted ascending by voltage
+  [8375,'0A'],[8500,'29'],[8625,'09'],[8750,'28'],[8875,'08'],
+  [9000,'27'],[9125,'07'],[9250,'26'],[9375,'06'],[9500,'25'],
+  [9625,'05'],[9750,'24'],[9875,'04'],[10000,'23'],[10125,'03'],
+  [10250,'22'],[10375,'02'],[10500,'21'],[10625,'01'],[10750,'20'],
+  [10875,'00'],[11000,'3E'],[11125,'1E'],[11250,'3D'],[11375,'1D'],
+  [11500,'3C'],[11625,'1C'],[11750,'3B'],[11875,'1B'],[12000,'3A'],
+  [12125,'1A'],[12250,'39'],[12375,'19'],[12500,'38'],[12625,'18'],
+  [12750,'37'],[12875,'17'],[13000,'36'],[13125,'16'],[13250,'35'],
+  [13375,'15'],[13500,'34'],[13625,'14'],[13750,'33'],[13875,'13'],
+  [14000,'32'],[14125,'12'],[14250,'31'],[14375,'11'],[14500,'30'],
+  [14625,'10'],[14750,'2F'],[14875,'0F'],[15000,'2E'],[15125,'0E'],
+  [15250,'2D'],[15375,'0D'],[15500,'2C'],[15625,'0C'],[15750,'2B'],
+  [15875,'0B'],[16000,'2A'],
+];
+// Reverse map: VID_HEX → voltage × 10000
+const UV_VID_TO_V = {};
+UV_VID_TABLE.forEach(([v, h]) => { UV_VID_TO_V[h.toUpperCase()] = v; });
+
+// Returns voltage × 10000 (integer, exact) for a given VID hex string
+function uvVidV(vidHex) {
+  return UV_VID_TO_V[vidHex.toUpperCase()];
+}
+// Format voltage int to display string: 11375 → "1.1375 V"
+function uvFmtV(vInt) {
+  return (vInt / 10000).toFixed(4) + ' V';
+}
+// Full VID table for slider — all 62 valid voltages, no range restriction
+function uvGetSliderTable() {
+  return UV_VID_TABLE;
+}
+
+const UV_VIDS = {
+  cell: {
+    stock:     { '90nm': ['39','1.2250V'], '65nm': ['3E','1.1000V'], '45nm': ['25','0.9500V'] },
+    undervolt: { '90nm': ['1D','1.1375V'], '65nm': ['00','1.0875V'], '45nm': ['07','0.9125V'] },
+  },
+  rsx: {
+    stock:     { '90nm': ['36','1.3000V'], '65nm': ['3E','1.1000V'], '40nm': ['25','0.9500V'] },
+    undervolt: { '90nm': ['1B','1.1875V'], '65nm': ['00','1.0875V'], '40nm': ['07','0.9125V'] },
+  },
+};
+
+// Node lists per chip
+const UV_NODES = { cell: ['90nm','65nm','45nm'], rsx: ['90nm','65nm','40nm'] };
+
+// Node descriptions
+const UV_NODE_DESC = {
+  '90nm': 'COK-001 · COK-002 · large die, original launch boards',
+  '65nm': 'DIA-001 · DIA-002 · JSD-001 · most common revision',
+  '45nm': 'SUR-001 · JTP-001 · slim boards (CECH-20xx / 21xx)',
+  '40nm': 'RSX variant on 40nm slim boards',
+};
+
+function uvAddr(chip) {
+  const isCXRF = sc() === 'CXRF';
+  return chip === 'cell' ? (isCXRF ? '3110' : '50') : (isCXRF ? '3111' : '51');
+}
+
+// Returns [vidHex, voltageLabel] for the current UV_STATE
+function uvGetVID() {
+  if (UV_STATE.mode === 'stock') return UV_VIDS[UV_STATE.chip].stock[UV_STATE.nm];
+  if (UV_STATE.configMode === 'manual' && UV_STATE.manualVid) {
+    const vInt   = uvVidV(UV_STATE.manualVid);
+    const vLabel = vInt ? uvFmtV(vInt) + ' (custom)' : '0x' + UV_STATE.manualVid + ' (custom)';
+    return [UV_STATE.manualVid.toUpperCase(), vLabel];
+  }
+  return UV_VIDS[UV_STATE.chip].undervolt[UV_STATE.nm];
+}
+
+function buildUVSteps() {
+  const sw = document.getElementById('uv-stepper');
+  if (!sw) return;
+  sw.innerHTML = '';
+  UV_STEPS.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'step';
+    d.innerHTML = `<span class="num"><span>${i + 1}</span></span><span class="lbl">${s.label}</span>`;
+    sw.appendChild(d);
+  });
+}
+
+function renderUVStep() {
+  const idx = state.uvStep;
+  document.querySelectorAll('#uv-stepper .step').forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+    el.classList.toggle('done',   i <  idx);
+    el.classList.remove('error');
+  });
+  const body = document.getElementById('uv-step-body');
+  if (!body) return;
+  const id = UV_STEPS[idx].id;
+  let html = '';
+
+  /* ── STEP 1: Select chip / node / mode ─────────────────── */
+  if (id === 'select') {
+    const nodes   = UV_STATE.chip ? UV_NODES[UV_STATE.chip] : [];
+    if (UV_STATE.nm && !nodes.includes(UV_STATE.nm)) UV_STATE.nm = null;
+    const canGo   = UV_STATE.chip && UV_STATE.nm;
+
+    html = `
+      <div class="card">
+        <div class="card-h"><span class="ttl">Step 1 - Select chip and process node</span></div>
+        <div class="card-b col">
+          <div class="desc">Choose which chip to adjust and its silicon revision. Check your board revision label or the chip marking to identify the process node.</div>
+
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--t-3);margin-bottom:8px">Chip</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px">
+            <label class="card" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer${UV_STATE.chip==='cell'?';border-color:var(--ax);box-shadow:0 0 0 1px var(--ax)':''}">
+              <input type="radio" name="uv-chip" value="cell" onchange="UV_STATE.chip='cell';UV_STATE.nm=null;renderUVStep()" ${UV_STATE.chip==='cell'?'checked':''}>
+              <div>
+                <strong style="font-size:13px">CELL</strong>
+                <div style="font-size:11px;color:var(--t-3);margin-top:2px">CPU · processor core voltage</div>
+              </div>
+            </label>
+            <label class="card" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer${UV_STATE.chip==='rsx'?';border-color:var(--ax);box-shadow:0 0 0 1px var(--ax)':''}">
+              <input type="radio" name="uv-chip" value="rsx" onchange="UV_STATE.chip='rsx';UV_STATE.nm=null;renderUVStep()" ${UV_STATE.chip==='rsx'?'checked':''}>
+              <div>
+                <strong style="font-size:13px">RSX</strong>
+                <div style="font-size:11px;color:var(--t-3);margin-top:2px">GPU · graphics core voltage</div>
+              </div>
+            </label>
+          </div>
+
+          ${UV_STATE.chip ? `
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--t-3);margin-bottom:8px">Process Node / Revision</div>
+          <div class="col" style="gap:6px;margin-bottom:18px">
+            ${nodes.map(n => `
+            <label class="card" style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer${UV_STATE.nm===n?';border-color:var(--ax);box-shadow:0 0 0 1px var(--ax)':''}">
+              <input type="radio" name="uv-nm" value="${n}" onchange="UV_STATE.nm='${n}';renderUVStep()" ${UV_STATE.nm===n?'checked':''}>
+              <div>
+                <strong>${n} ${UV_STATE.chip.toUpperCase()}</strong>
+                <span style="font-size:11px;color:var(--t-3);margin-left:10px">${UV_NODE_DESC[n]||''}</span>
+              </div>
+            </label>`).join('')}
+          </div>
+
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--t-3);margin-bottom:8px">Mode</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px">
+            <label class="card" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer${UV_STATE.mode==='undervolt'?';border-color:var(--ax);box-shadow:0 0 0 1px var(--ax)':''}">
+              <input type="radio" name="uv-mode" value="undervolt" onchange="UV_STATE.mode='undervolt';renderUVStep()" ${UV_STATE.mode==='undervolt'?'checked':''}>
+              <div>
+                <strong>Undervolt</strong>
+                <div style="font-size:11px;color:var(--t-3);margin-top:2px">Lower voltage · choose preset or custom VID</div>
+              </div>
+            </label>
+            <label class="card" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer${UV_STATE.mode==='stock'?';border-color:var(--ax);box-shadow:0 0 0 1px var(--ax)':''}">
+              <input type="radio" name="uv-mode" value="stock" onchange="UV_STATE.mode='stock';renderUVStep()" ${UV_STATE.mode==='stock'?'checked':''}>
+              <div>
+                <strong>Restore Factory</strong>
+                <div style="font-size:11px;color:var(--t-3);margin-top:2px">Write back the stock VID value</div>
+              </div>
+            </label>
+          </div>
+          ` : `<div class="alert al-info"><div class="ai">i</div><div class="at">Select CELL or RSX above to continue.</div></div>`}
+
+          <div class="row">
+            <button class="btn btn-pri" onclick="uvGoFromSelect()" ${canGo ? '' : 'disabled'}>Continue</button>
+          </div>
+        </div>
+      </div>`;
+
+  /* ── STEP 2: Configure (undervolt only) ─────────────────── */
+  } else if (id === 'configure') {
+    const presetEntry = UV_VIDS[UV_STATE.chip].undervolt[UV_STATE.nm];
+    const stockEntry  = UV_VIDS[UV_STATE.chip].stock[UV_STATE.nm];
+    const isPreset    = UV_STATE.configMode === 'preset';
+    const noRange     = presetEntry[0].toUpperCase() === stockEntry[0].toUpperCase();
+
+    // Table-based slider setup (exact VID table values only — no interpolation)
+    const sliderTable  = uvGetSliderTable();
+    const presetVidU   = presetEntry[0].toUpperCase();
+    const stockVidU    = stockEntry[0].toUpperCase();
+    const curVidU      = (UV_STATE.manualVid || presetVidU).toUpperCase();
+    const presetIdx    = sliderTable.findIndex(([,h]) => h.toUpperCase() === presetVidU);
+    const stockIdx     = sliderTable.findIndex(([,h]) => h.toUpperCase() === stockVidU);
+    let   curIdx       = sliderTable.findIndex(([,h]) => h.toUpperCase() === curVidU);
+    if (curIdx < 0) curIdx = presetIdx >= 0 ? presetIdx : 0;
+    const curVInt      = sliderTable[curIdx]?.[0] ?? uvVidV(presetVidU);
+    const isExp        = presetIdx >= 0 && curIdx < presetIdx;
+    const isOvervolt   = stockIdx >= 0 && curIdx > stockIdx;
+    const pct          = n => sliderTable.length > 1 ? Math.round(n / (sliderTable.length - 1) * 100) : 0;
+    const presetPct    = pct(presetIdx);
+    const stockPct     = pct(stockIdx);
+    const minEntry     = sliderTable[0];
+    const maxEntry     = sliderTable[sliderTable.length - 1];
+
+    html = `
+      <div class="card">
+        <div class="card-h"><span class="ttl">Step 2 - Configure undervolt</span></div>
+        <div class="card-b col">
+          <div class="desc">Choose a community-tested preset, or fine-tune the voltage manually. Only valid voltages from the Mullion VID table are selectable.</div>
+
+          <div style="display:flex;gap:0;border:1px solid var(--bd-1);border-radius:var(--r-1);overflow:hidden;margin-bottom:18px;width:fit-content">
+            <button class="btn" style="border-radius:0;border:none;${isPreset?'background:var(--ax);color:#fff':''}" onclick="UV_STATE.configMode='preset';UV_STATE.manualVid=null;renderUVStep()">Use Preset</button>
+            <button class="btn" style="border-radius:0;border:none;border-left:1px solid var(--bd-1);${!isPreset?'background:var(--ax);color:#fff':''}" onclick="UV_STATE.configMode='manual';renderUVStep()">Custom Voltage</button>
+          </div>
+
+          ${isPreset ? `
+          <div class="card" style="padding:16px 18px;border-color:var(--ax);box-shadow:0 0 0 1px var(--ax);margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:16px">
+              <div style="font-size:44px;font-weight:700;font-family:var(--mono);color:var(--ok);line-height:1;white-space:nowrap">${presetEntry[1].replace('V',' <span style="font-size:20px;font-weight:400">V</span>')}</div>
+              <div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                  <strong style="font-size:15px">Community Preset</strong>
+                  <span class="badge ok">Recommended</span>
+                </div>
+                <div style="font-size:12px;color:var(--t-3)">
+                  VID register: <code style="color:var(--ax)">0x${presetEntry[0]}</code>
+                  &nbsp;·&nbsp; Stock: <strong>${stockEntry[1]}</strong>
+                </div>
+                <div style="font-size:11px;color:var(--t-3);margin-top:5px">Community-verified for ${UV_STATE.nm} ${UV_STATE.chip.toUpperCase()} · saves power · reduces heat.</div>
+              </div>
+            </div>
+          </div>
+          ` : noRange ? `
+          <div class="alert al-info"><div class="ai">i</div><div class="at">No undervolt range for ${UV_STATE.nm} ${UV_STATE.chip.toUpperCase()} — stock and preset voltage are identical.</div></div>
+          ` : `
+          <div class="tile" style="padding:18px;margin-bottom:6px">
+            <div class="alert al-warn" style="margin-bottom:18px"><div class="ai">!</div><div class="at"><strong>Advanced:</strong> Values below the community preset are experimental. All voltages are exact values from the Mullion VID table (12.5 mV steps).</div></div>
+
+            <div style="text-align:center;margin-bottom:22px">
+              <div id="uv-v-display" style="font-size:52px;font-weight:700;font-family:var(--mono);color:${isOvervolt?'var(--err)':isExp?'var(--warn)':'var(--ok)'};line-height:1;letter-spacing:-.02em">
+                ${uvFmtV(curVInt)}
+              </div>
+              <div id="uv-v-vid" style="font-size:12px;color:var(--t-3);margin-top:8px">
+                VID register: <code style="color:var(--ax)">0x${curVidU}</code>
+                &nbsp;·&nbsp; exact table value
+              </div>
+              ${isExp      ? `<div style="font-size:11px;color:var(--warn);margin-top:5px">⚠ Below community preset — experimental range</div>` : ''}
+              ${isOvervolt ? `<div style="font-size:11px;color:var(--err);margin-top:5px">⚠ Above stock voltage — proceed with extreme caution</div>` : ''}
+            </div>
+
+            <div style="padding:0 2px">
+              <div style="position:relative;height:18px;margin-bottom:6px;font-size:10px;color:var(--t-3)">
+                ${presetIdx >= 0 ? `<span style="position:absolute;left:${presetPct}%;transform:translateX(-50%);color:var(--ok);white-space:nowrap">★ Preset</span>` : ''}
+              </div>
+              <input type="range" id="uv-v-slider"
+                min="0" max="${sliderTable.length - 1}" step="1"
+                value="${curIdx}"
+                style="width:100%;accent-color:var(--ax)"
+                oninput="uvVoltageSlider(this.value)">
+              <div style="position:relative;height:16px;font-size:10px;color:var(--t-3);margin-top:4px">
+                ${stockIdx >= 0 ? `<span style="position:absolute;left:${stockPct}%;transform:translateX(-50%);color:var(--t-2);white-space:nowrap">▶ Stock</span>` : ''}
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t-3);margin-top:2px">
+                <span style="color:var(--warn)">${minEntry ? uvFmtV(minEntry[0]) : ''} <small>min</small></span>
+                <span style="color:var(--ok)">${presetEntry[1]} preset</span>
+                <span>${maxEntry ? uvFmtV(maxEntry[0]) : ''} <small>max</small></span>
+              </div>
+            </div>
+          </div>
+          `}
+
+          <details style="margin-top:14px;border:1px solid var(--bd-1);border-radius:var(--r-2);overflow:hidden">
+            <summary style="padding:10px 14px;cursor:pointer;font-size:12px;font-weight:600;color:var(--ax);background:var(--bg-2);list-style:none;display:flex;align-items:center;gap:6px">
+              Voltage Ranges Reference <span style="font-size:10px;color:var(--t-3);font-weight:400;margin-left:4px">by DoublesAdvocat</span>
+            </summary>
+            <div style="background:#000;padding:8px">
+              <img src="../assets/voltage_ranges.png" style="width:100%;display:block;border-radius:var(--r-1)">
+            </div>
+          </details>
+
+          <div class="row" style="margin-top:14px">
+            <button class="btn btn-pri" onclick="uvGoFromConfigure()">Continue</button>
+            <button class="btn" onclick="state.uvStep=0;renderUVStep()">← Back</button>
+          </div>
+        </div>
+      </div>`;
+
+  /* ── STEP 3: Confirm ───────────────────────────────────── */
+  } else if (id === 'confirm') {
+    const vidEntry = uvGetVID();
+    const vid      = vidEntry[0], voltage = vidEntry[1];
+    const addr     = uvAddr(UV_STATE.chip);
+    const isStock  = UV_STATE.mode === 'stock';
+    const isManual = UV_STATE.configMode === 'manual' && !isStock;
+    const cmd      = `w ${addr} ${vid.match(/.{2}/g).join(' ')}`;
+
+    html = `
+      <div class="card">
+        <div class="card-h"><span class="ttl">Step 3 - Review &amp; confirm</span></div>
+        <div class="card-b col">
+          ${isManual
+            ? `<div class="alert al-err"><div class="ai">!</div><div class="at"><strong>Manual VID:</strong> You are writing a custom voltage value. Verify this is correct before proceeding.</div></div>`
+            : `<div class="alert al-warn"><div class="ai">!</div><div class="at">The following EEPROM write will be executed. Double-check the values before proceeding.</div></div>`
+          }
+          <div class="tile" style="padding:14px;margin-bottom:4px">
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+              <tr><td style="padding:5px 0;color:var(--t-3);width:140px">Chip</td><td><strong>${UV_STATE.chip.toUpperCase()} (${UV_STATE.chip==='cell'?'CPU':'GPU'})</strong></td></tr>
+              <tr><td style="padding:5px 0;color:var(--t-3)">Process node</td><td><strong>${UV_STATE.nm}</strong></td></tr>
+              <tr><td style="padding:5px 0;color:var(--t-3)">Mode</td><td><strong>${isStock ? 'Restore Factory' : isManual ? 'Custom Undervolt' : 'Community Preset'}</strong></td></tr>
+              <tr><td style="padding:5px 0;color:var(--t-3)">EEPROM address</td><td><code>0x${addr.toUpperCase()}</code></td></tr>
+              <tr><td style="padding:5px 0;color:var(--t-3)">VID byte</td><td><code style="color:var(--ax)">0x${vid.toUpperCase()}</code></td></tr>
+              <tr><td style="padding:5px 0;color:var(--t-3)">Voltage ref.</td><td><strong style="color:var(--ok)">${voltage}</strong></td></tr>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--t-3);margin-bottom:8px">Command to be sent:</div>
+          <div class="code-ref"><span class="k">${cmd}</span></div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn btn-warn" onclick="uvApply()">Apply</button>
+            <button class="btn" onclick="state.uvStep=${UV_STATE.mode==='stock'?0:1};renderUVStep()">← Back</button>
+          </div>
+        </div>
+      </div>`;
+
+  /* ── STEP 4: Apply ─────────────────────────────────────── */
+  } else if (id === 'apply') {
+    html = `
+      <div class="card">
+        <div class="card-h"><span class="ttl">Step 4 - Writing register</span><span class="badge warn">running</span></div>
+        <div class="card-b col">
+          <div class="row" style="gap:12px;align-items:center">
+            <div class="spinner"></div>
+            <span>Writing voltage register to EEPROM &mdash; watch the terminal for details&hellip;</span>
+          </div>
+        </div>
+      </div>`;
+
+  /* ── STEP 5: Checksum ──────────────────────────────────── */
+  } else if (id === 'checksum') {
+    html = `
+      <div class="card">
+        <div class="card-h"><span class="ttl">Step 5 - Fix checksums</span></div>
+        <div class="card-b col">
+          <div class="desc">After writing a VID register, the EEPROM checksum must be corrected. Skipping this step will cause a 3-beep error on next boot.</div>
+          <div class="alert al-warn"><div class="ai">!</div><div class="at">Do not power-cycle the console before running this step.</div></div>
+          <div class="row" style="margin-top:4px">
+            <button class="btn btn-pri" id="uv-csum-btn" onclick="doUVChecksum()">Run Checksum Correction</button>
+          </div>
+          <div id="uv-csum-results" style="margin-top:10px;display:none"></div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn" id="uv-csum-continue" onclick="uvNext()" disabled>Continue &rarr;</button>
+          </div>
+        </div>
+      </div>`;
+
+  /* ── STEP 6: Done ──────────────────────────────────────── */
+  } else if (id === 'done') {
+    const vidEntry = uvGetVID();
+    html = `
+      <div class="card">
+        <div class="card-h"><span class="ttl">Done</span><span class="badge ok">success</span></div>
+        <div class="card-b col">
+          <div class="alert al-ok"><div class="ai">✓</div><div class="at">${UV_STATE.mode==='stock'?'Factory voltage restored':'Undervolt applied'} and checksum corrected. Power-cycle the console and test under load.</div></div>
+          <div class="tile" style="padding:12px 14px;font-size:13px">
+            <span style="color:var(--t-3)">${UV_STATE.chip.toUpperCase()} ${UV_STATE.nm} &nbsp;·&nbsp;</span>
+            <code style="color:var(--ax)">0x${vidEntry[0].toUpperCase()}</code>
+            <span style="color:var(--t-3)"> &nbsp;·&nbsp; </span>
+            <strong style="color:var(--ok)">${vidEntry[1]}</strong>
+          </div>
+          <div class="row">
+            <button class="btn" onclick="UV_STATE.chip=null;UV_STATE.nm=null;UV_STATE.mode='undervolt';UV_STATE.configMode='preset';UV_STATE.manualVid=null;state.uvStep=0;renderUVStep()">Start over</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  body.innerHTML = html;
+}
+
+// From step 1: jump to configure (undervolt) or confirm (factory)
+function uvGoFromSelect() {
+  state.uvStep = UV_STATE.mode === 'stock' ? 2 : 1;
+  renderUVStep();
+}
+
+// From step 2: snapshot selected VID and advance to confirm
+function uvGoFromConfigure() {
+  if (UV_STATE.configMode === 'manual') {
+    const slider = document.getElementById('uv-v-slider');
+    if (slider) {
+      const table = uvGetSliderTable();
+      const entry = table[parseInt(slider.value)];
+      if (entry) UV_STATE.manualVid = entry[1].toUpperCase();
+    }
+  } else {
+    UV_STATE.manualVid = null;
+  }
+  state.uvStep = 2;
+  renderUVStep();
+}
+
+// Slider live update — value is an index into uvGetSliderTable()
+function uvVoltageSlider(idx) {
+  const table  = uvGetSliderTable();
+  const entry  = table[parseInt(idx)];
+  if (!entry) return;
+  const [vInt, vid] = entry;
+  UV_STATE.manualVid = vid.toUpperCase();
+
+  const presetVid = UV_VIDS[UV_STATE.chip].undervolt[UV_STATE.nm][0].toUpperCase();
+  const stockVid  = UV_VIDS[UV_STATE.chip].stock[UV_STATE.nm][0].toUpperCase();
+  const presetIdx = table.findIndex(([,h]) => h.toUpperCase() === presetVid);
+  const stockIdx  = table.findIndex(([,h]) => h.toUpperCase() === stockVid);
+  const i         = parseInt(idx);
+  const isExp     = presetIdx >= 0 && i < presetIdx;
+  const isOV      = stockIdx  >= 0 && i > stockIdx;
+
+  const disp  = document.getElementById('uv-v-display');
+  const vidEl = document.getElementById('uv-v-vid');
+  if (disp) {
+    disp.textContent = uvFmtV(vInt);
+    disp.style.color = isOV ? 'var(--err)' : isExp ? 'var(--warn)' : 'var(--ok)';
+  }
+  if (vidEl) {
+    vidEl.innerHTML = `VID register: <code style="color:var(--ax)">0x${vid.toUpperCase()}</code> &nbsp;·&nbsp; exact table value`;
+  }
+}
+
+function uvNext() {
+  state.uvStep = Math.min(state.uvStep + 1, UV_STEPS.length - 1);
+  renderUVStep();
+}
+
+function uvApply() {
+  const a = api(); if (!a) return;
+  const vidEntry = uvGetVID();
+  const vid      = vidEntry[0];
+  state.uvStep   = 3;
+  renderUVStep();
+  const mode = UV_STATE.mode === 'stock'           ? 'stock'
+             : UV_STATE.configMode === 'manual'     ? 'manual_' + vid
+             :                                        'undervolt';
+  a.undervolt_apply(port(), sc(), UV_STATE.chip, UV_STATE.nm, mode);
+}
+
+function doUVChecksum() {
+  const a = api(); if (!a) return;
+  const btn = document.getElementById('uv-csum-btn');
+  if (btn) btn.disabled = true;
+  a.rsx_post_patch_checksum(port(), sc());
+}
+
+function onUVChecksumDone(result) {
+  const btn  = document.getElementById('uv-csum-btn');
+  const res  = document.getElementById('uv-csum-results');
+  const cont = document.getElementById('uv-csum-continue');
+  if (btn) btn.disabled = false;
+  if (!res) return;
+  res.style.display = '';
+  if (!result.ok) {
+    res.innerHTML = `<div class="alert al-err"><div class="ai">✕</div><div class="at">Error: ${result.error}</div></div>`;
+    return;
+  }
+  let html = '';
+  let allOk = true;
+  result.log.forEach(e => {
+    if (e.type === 'eep') {
+      html += `<div class="alert ${e.ok?'al-ok':'al-err'}" style="margin-bottom:4px"><div class="ai">${e.ok?'✓':'✕'}</div><div class="at"><code>${e.cmd}</code> ${e.ok?'corrected':'failed'}</div></div>`;
+      if (!e.ok) allOk = false;
+    } else if (e.type === 'eep_ok') {
+      html += `<div class="alert al-ok" style="margin-bottom:4px"><div class="ai">✓</div><div class="at">No EEPROM checksum mismatches found.</div></div>`;
+    }
+  });
+  res.innerHTML = html;
+  if (cont) cont.disabled = false;
+  toast(allOk ? 'Checksums corrected' : 'Some corrections failed', allOk ? 'ok' : 'warn');
+}
+
+/* ─────────────────────────────────────────────────────────── */
 
 function doRSXBackup() {
   const a = api(); if (!a) return;
@@ -4507,6 +5598,314 @@ function closeModal() { document.getElementById('modal-bg').classList.add('hidde
 function showShortcuts() { switchWorkflow('settings'); }
 
 /* ════════════════════════════════════════════════════════════
+   SB UART LOG CAPTURE
+   ════════════════════════════════════════════════════════════ */
+
+const SB_PATTERNS = [
+  { re: /BitTraining BE:RRAC:.*RX_STATUS/,         sev:'err',  label:'CELL BGA fault',       diag:'XDR bit-training failure on CELL side.',       fix:'Reflow or replace CELL BGA.' },
+  { re: /BitTraining RSX:RRAC:.*RX_STATUS/,        sev:'err',  label:'RSX BGA fault',        diag:'XDR bit-training failure on RSX side.',        fix:'Reflow or replace RSX BGA.' },
+  { re: /BitTraining SB:RRAC:.*FLEXIO_ID/,         sev:'err',  label:'SB FlexIO fault',      diag:'South Bridge FlexIO ID mismatch.',             fix:'Reflow SB or check NAND.' },
+  { re: /BitTraining BE:RRAC:.*FLEXIO_ID/,         sev:'err',  label:'FlexIO trace fault',   diag:'CELL-side FlexIO trace failure.',              fix:'Check PCB traces between CELL and SB.' },
+  { re: /SB \(FATAL\).*XDR Link not initialized/,  sev:'err',  label:'SB GLOD',              diag:'XDR link failed to initialize - causes GLOD.', fix:'Reflow CELL/RSX BGA; check XDR RAM.' },
+  { re: /SB Counter Error/,                        sev:'warn', label:'SB Counter/Thermal',   diag:'SB counter error, possibly thermal.',          fix:'Check cooling; replace thermal paste.' },
+  { re: /Busy loop detected/,                      sev:'warn', label:'PLL unlock',           diag:'PLL busy-loop detected.',                      fix:'Check power rails; possible clock issue.' },
+  { re: /\[POWERSEQ\]\s*Error/,                    sev:'err',  label:'Power-Sequence fail',  diag:'A power sequencing step failed.',              fix:'Check voltage rails and VRM.' },
+  { re: /(?<!\[POWERSEQ\]: Step \d{3} : )shutdown/,sev:'warn', label:'Early shutdown',       diag:'Unexpected shutdown detected.',                fix:'Review preceding errors.' },
+  { re: /sc_init START/,                           sev:'ok',   label:'Boot start',           diag:'SB firmware initializing.',                    fix:'' },
+];
+
+let _sbBuf        = '';
+let _sbHexBuf     = new Uint8Array(0);
+let _sbCapturing  = false;
+let _sbAnalysisHits = {};
+let _sbCurrentTab = 'text';
+let _sbGen        = 'new';
+let _pmessVariant = 'cxr713';
+
+function refreshSBLogView() {
+  setSBState(_sbCapturing ? 'capturing' : 'idle');
+}
+
+function setSBState(s) {
+  _sbCapturing = (s === 'capturing');
+  document.getElementById('sb-btn-start').disabled  = _sbCapturing;
+  document.getElementById('sb-btn-stop').disabled   = !_sbCapturing;
+  document.getElementById('sb-btn-save').disabled   = _sbBuf.length === 0;
+  const bar = document.getElementById('sb-status-bar');
+  if (s === 'capturing') {
+    bar.style.display = ''; bar.className = 'alert al-info';
+    bar.textContent = 'Capturing SB UART output...';
+  } else if (s === 'stopped') {
+    bar.style.display = ''; bar.className = 'alert al-ok';
+    bar.textContent = 'Capture stopped. ' + _sbBuf.split('\n').filter(l=>l).length + ' lines received.';
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function sbSwitchTab(name) {
+  _sbCurrentTab = name;
+  document.querySelectorAll('.sb-tab').forEach(t => t.classList.toggle('on', t.id === 'sb-tab-' + name));
+  document.querySelectorAll('.sb-tab-btn').forEach(b => b.classList.toggle('on', b.id === 'sb-tab-btn-' + name));
+  if (name === 'hex') sbUpdateHexView();
+  if (name === 'analysis') sbRenderAnalysis();
+}
+
+function doSBStart() {
+  const a = api();
+  if (!a) return toast('Backend not ready', 'err');
+  if (!port() && !state.sandbox) return toast('Select a port first', 'warn');
+  setSBState('capturing');
+  a.sb_capture_start(port(), baud(sc()));
+}
+
+function pmessSelectVariant(v) {
+  _pmessVariant = v;
+  ['cxr713','cxr714','sherwood'].forEach(id =>
+    document.getElementById('pmess-var-' + id).classList.toggle('on', id === v)
+  );
+}
+
+function doPMESSSet(enable) {
+  const a = api(); if (!a) return toast('Backend not ready', 'err');
+  if (sc() !== 'CXRF' && !state.sandbox) return toast('SC-Type must be CXRF to send PME/SS commands', 'err');
+  if (!state.isAuth && !state.sandbox) return toast('Authenticate with CXRF first', 'warn');
+  const st = document.getElementById('pmess-status');
+  st.style.display = ''; st.className = 'alert al-info';
+  st.textContent = (enable ? 'Enabling' : 'Disabling') + ' PME/SS logging...';
+  a.pmess_set(port(), _pmessVariant, enable);
+}
+
+function onPMESSDone(ok, msg) {
+  const st = document.getElementById('pmess-status');
+  st.style.display = '';
+  st.className = ok ? 'alert al-ok' : 'alert al-err';
+  st.textContent = msg;
+  if (ok) toast(msg, 'ok'); else toast('PME/SS: ' + msg, 'err');
+}
+
+function doSBStop() {
+  const a = api(); if (!a) return;
+  a.sb_capture_stop();
+}
+
+function doSBClear() {
+  _sbBuf = '';
+  _sbHexBuf = new Uint8Array(0);
+  _sbAnalysisHits = {};
+  document.getElementById('sb-text-out').textContent = '';
+  document.getElementById('sb-hex-out').textContent  = '';
+  document.getElementById('sb-analysis-out').innerHTML = '';
+  document.getElementById('sb-btn-save').disabled = true;
+  document.getElementById('sb-status-bar').style.display = 'none';
+}
+
+function doSBSave() {
+  const a = api(); if (!a) return;
+  a.sb_save_log(_sbBuf);
+}
+
+function sbSelectGen(gen) {
+  _sbGen = gen;
+  document.getElementById('sb-gen-old').classList.toggle('on', gen === 'old');
+  document.getElementById('sb-gen-new').classList.toggle('on', gen === 'new');
+}
+
+function doSBActivate() {
+  const a = api(); if (!a) return toast('Backend not ready', 'err');
+  if (sc() !== 'CXRF' && !state.sandbox) return toast('SC-Type must be CXRF before activating SB UART', 'err');
+  if (!state.isAuth && !state.sandbox) return toast('Authenticate with CXRF first', 'warn');
+  const st = document.getElementById('sb-activate-status');
+  st.style.display = ''; st.className = 'alert al-info'; st.textContent = 'Sending activation commands...';
+  document.getElementById('sb-btn-activate').disabled = true;
+  a.sb_activate_via_syscon(port(), 'CXRF', _sbGen, false);
+}
+
+function onSBChunk(hexStr, text) {
+  // Accumulate text
+  _sbBuf += text;
+
+  // Append to text tab
+  const tOut = document.getElementById('sb-text-out');
+  tOut.textContent += text;
+  tOut.scrollTop = tOut.scrollHeight;
+
+  // Accumulate hex bytes
+  const bytes = new Uint8Array(hexStr.match(/.{2}/g).map(h => parseInt(h, 16)));
+  const merged = new Uint8Array(_sbHexBuf.length + bytes.length);
+  merged.set(_sbHexBuf); merged.set(bytes, _sbHexBuf.length);
+  _sbHexBuf = merged;
+  if (_sbCurrentTab === 'hex') sbUpdateHexView();
+
+  // Analyse each new line
+  text.split('\n').forEach(line => { if (line.trim()) sbAnalyseLine(line); });
+  if (_sbCurrentTab === 'analysis') sbRenderAnalysis();
+
+  document.getElementById('sb-btn-save').disabled = false;
+}
+
+function onSBStatus(status) {
+  if (status === 'stopped' || status === 'error') setSBState('stopped');
+  else if (status === 'already_running') toast('Capture already in progress', 'warn');
+}
+
+function onSBActivateDone(ok, msg) {
+  const st = document.getElementById('sb-activate-status');
+  st.style.display = '';
+  st.className = ok ? 'alert al-ok' : 'alert al-err';
+  st.textContent = msg;
+  document.getElementById('sb-btn-activate').disabled = false;
+  if (ok) toast('SB UART activated', 'ok');
+  else toast('Activation failed: ' + msg, 'err');
+}
+
+function onSBSaveDone(fname) {
+  if (fname) toast('Log saved: ' + fname, 'ok');
+  else toast('Save cancelled', 'dim');
+}
+
+function sbUpdateHexView() {
+  const bytes = _sbHexBuf;
+  const lines = [];
+  for (let i = 0; i < bytes.length; i += 16) {
+    const row = bytes.slice(i, i + 16);
+    const addr = i.toString(16).padStart(8, '0').toUpperCase();
+    const hex  = Array.from(row).map(b => b.toString(16).padStart(2,'0').toUpperCase()).join(' ').padEnd(47, ' ');
+    const asc  = Array.from(row).map(b => (b >= 0x20 && b < 0x7f) ? String.fromCharCode(b) : '.').join('');
+    lines.push(addr + '  ' + hex + '  |' + asc + '|');
+  }
+  const el = document.getElementById('sb-hex-out');
+  el.textContent = lines.join('\n');
+  el.scrollTop = el.scrollHeight;
+}
+
+function sbAnalyseLine(line) {
+  SB_PATTERNS.forEach(p => {
+    if (p.re.test(line)) {
+      const key = p.label + '|' + line.trim().slice(0, 80);
+      if (!_sbAnalysisHits[key]) {
+        _sbAnalysisHits[key] = { sev: p.sev, label: p.label, diag: p.diag, fix: p.fix, line: line.trim() };
+      }
+    }
+  });
+}
+
+function sbRenderAnalysis() {
+  const el = document.getElementById('sb-analysis-out');
+  const hits = Object.values(_sbAnalysisHits);
+  if (hits.length === 0) {
+    el.innerHTML = '<div class="muted" style="padding:8px;font-size:12px">No patterns matched yet.</div>';
+    return;
+  }
+  const order = { err:0, warn:1, ok:2 };
+  hits.sort((a,b) => (order[a.sev]||9) - (order[b.sev]||9));
+  el.innerHTML = hits.map(h => {
+    const cls = h.sev === 'err' ? 'al-err' : h.sev === 'warn' ? 'al-warn' : 'al-ok';
+    const icon = h.sev === 'err' ? '✕' : h.sev === 'warn' ? '!' : '✓';
+    return `<div class="alert ${cls}" style="margin-bottom:6px;flex-direction:column;align-items:flex-start">
+      <div style="display:flex;gap:8px;align-items:center"><div class="ai">${icon}</div><strong>${h.label}</strong></div>
+      <div style="margin-top:4px;font-size:11px;opacity:.85">${h.diag}</div>
+      ${h.fix ? `<div style="margin-top:2px;font-size:11px;opacity:.7">Fix: ${h.fix}</div>` : ''}
+      <div style="margin-top:4px;font-size:10px;font-family:var(--mono);opacity:.55;word-break:break-all">${h.line}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ════════════════════════════════════════════════════════════
+   CHECKSUM CORRECTOR
+   ════════════════════════════════════════════════════════════ */
+let _csumFixes = [];
+
+function doChecksumScan() {
+  const a = api(); if (!a) return toast('Backend not ready', 'err');
+  if (!state.isAuth && !state.sandbox) return toast('Authentication required', 'warn');
+  document.getElementById('csum-scan-btn').disabled = true;
+  document.getElementById('csum-fix-btn').disabled  = true;
+  document.getElementById('csum-results').style.display = 'none';
+  document.getElementById('csum-status').style.display  = 'none';
+  a.checksum_read(port(), sc());
+}
+
+function onChecksumRead(raw, fixes, err) {
+  document.getElementById('csum-scan-btn').disabled = false;
+  if (err || !fixes) {
+    const st = document.getElementById('csum-status');
+    st.style.display = ''; st.className = 'alert al-err'; st.textContent = err || 'Scan failed';
+    return;
+  }
+  _csumFixes = fixes;
+  const res = document.getElementById('csum-results');
+  res.style.display = '';
+  if (fixes.length === 0) {
+    res.innerHTML = '<div class="alert al-ok"><div class="ai">✓</div><div class="at">All EEPROM checksums are correct. No corrections needed.</div></div>';
+    document.getElementById('csum-fix-btn').disabled = true;
+    return;
+  }
+  let html = `<div style="font-size:11px;color:var(--t-3);margin-bottom:8px">${fixes.length} address${fixes.length > 1 ? 'es require' : ' requires'} correction:</div>`;
+  html += '<div style="display:grid;grid-template-columns:auto auto auto auto;gap:5px 16px;font-size:11px;font-family:var(--mono);background:var(--bg-2);border:1px solid var(--bd-1);border-radius:var(--r-2);padding:10px">';
+  html += '<div style="color:var(--t-3);font-family:var(--sans)">Address</div><div style="color:var(--t-3);font-family:var(--sans)">Should be</div><div style="color:var(--t-3);font-family:var(--sans)">Bytes</div><div style="color:var(--t-3);font-family:var(--sans)">Command</div>';
+  fixes.forEach(f => {
+    html += `<div>0x${f.addr}</div><div>0x${f.should_be}</div><div>${f.write_b1} ${f.write_b2}</div><div style="color:var(--ax)">w ${f.addr.toLowerCase()} ${f.write_b1.toLowerCase()} ${f.write_b2.toLowerCase()}</div>`;
+  });
+  html += '</div>';
+  res.innerHTML = html;
+  document.getElementById('csum-fix-btn').disabled = false;
+}
+
+function doChecksumFix() {
+  const a = api(); if (!a) return toast('Backend not ready', 'err');
+  if (_csumFixes.length === 0) return;
+  document.getElementById('csum-fix-btn').disabled  = true;
+  document.getElementById('csum-scan-btn').disabled = true;
+  a.checksum_fix(port(), sc(), _csumFixes);
+}
+
+function onChecksumFixDone(results, rawOrErr) {
+  document.getElementById('csum-scan-btn').disabled = false;
+  const st = document.getElementById('csum-status');
+  if (!results) {
+    st.style.display = ''; st.className = 'alert al-err'; st.textContent = rawOrErr || 'Fix failed';
+    return;
+  }
+  const allOk = results.every(r => r.ok);
+  st.style.display = ''; st.className = allOk ? 'alert al-ok' : 'alert al-warn';
+  st.textContent = allOk
+    ? `All ${results.length} checksum${results.length > 1 ? 's' : ''} corrected successfully.`
+    : 'Some writes may have failed - re-scan to verify.';
+  toast(allOk ? 'Checksums corrected' : 'Checksum fix incomplete', allOk ? 'ok' : 'warn');
+  document.getElementById('csum-fix-btn').disabled = true;
+}
+
+function doRSXChecksumFix() {
+  const a = api(); if (!a) return toast('Backend not ready', 'err');
+  if (!state.isAuth && !state.sandbox) return toast('Authentication required', 'warn');
+  document.getElementById('rsx-csum-results').style.display = 'none';
+  a.rsx_checksum_fix(port(), sc());
+}
+
+function onRSXChecksumDone(results) {
+  const el = document.getElementById('rsx-csum-results');
+  el.style.display = '';
+  if (!results) {
+    el.className = 'alert al-err'; el.textContent = 'RSX checksum fix failed'; return;
+  }
+  el.className = '';
+  let html = '<div style="display:grid;grid-template-columns:auto auto auto;gap:5px 16px;font-size:11px;font-family:var(--mono);background:var(--bg-2);border:1px solid var(--bd-1);border-radius:var(--r-2);padding:10px;margin-bottom:6px">';
+  html += '<div style="color:var(--t-3);font-family:var(--sans)">Address</div><div style="color:var(--t-3);font-family:var(--sans)">Before</div><div style="color:var(--t-3);font-family:var(--sans)">After</div>';
+  results.forEach(r => {
+    if (r.error) {
+      html += `<div>0x${r.addr}</div><div style="color:var(--err-t)">${r.error}</div><div>-</div>`;
+    } else {
+      html += `<div>0x${r.addr}</div><div>${r.original}</div><div style="color:var(--ax)">${r.verify}</div>`;
+    }
+  });
+  html += '</div>';
+  const allOk = results.every(r => !r.error);
+  html += `<div class="alert ${allOk ? 'al-ok' : 'al-warn'}"><div class="ai">${allOk ? '✓' : '!'}</div><div class="at">${allOk ? 'Bytes swapped and verified at 0x32FE and 0x34FE.' : 'Some addresses could not be corrected.'}</div></div>`;
+  el.innerHTML = html;
+}
+
+/* ════════════════════════════════════════════════════════════
    TOASTS
    ════════════════════════════════════════════════════════════ */
 function toast(msg, type) {
@@ -4563,8 +5962,8 @@ function loadSettings() {
 }
 
 function applyTheme(light, silent) {
-  // light = true  → silver/blue palette (DEFAULT)
-  // light = false → dark/green palette
+  // light = true  -> silver/blue palette (DEFAULT)
+  // light = false -> dark/green palette
   settings.lightMode = !!light;
   document.body.classList.toggle('theme-light', !!light);
   // "Dark Mode" checkbox: checked when dark (= !light)
@@ -4576,7 +5975,7 @@ function applyTheme(light, silent) {
 }
 
 function toggleTheme(force) {
-  // The checkbox sends its own .checked value → checked = dark mode = light false
+  // The checkbox sends its own .checked value -> checked = dark mode = light false
   if (typeof force === 'boolean') {
     applyTheme(!force);
   } else {
@@ -4737,6 +6136,26 @@ function zoomConnImg() {
   if (img) img.classList.toggle('zoomed');
 }
 
+const SB_CONN_BOARDS = [
+  { id:'cok1', label:'COK-001', models:'CECHA · CECHB · CECHC · CECHE',        img:'../assets/PS3-Serial-Connection-Points/attachments_SB_all-cok-00x.png' },
+  { id:'cok2', label:'COK-002', models:'CECHA · CECHB · CECHC · CECHE (rev.2)', img:'../assets/PS3-Serial-Connection-Points/attachments_SB_all-cok-00x.png' },
+];
+
+function selectSBConn(id) {
+  const b = SB_CONN_BOARDS.find(x => x.id === id);
+  if (!b) return;
+  document.querySelectorAll('#sb-conn-cok1,#sb-conn-cok2').forEach(el => el.classList.toggle('on', el.id === 'sb-conn-' + id));
+  document.getElementById('sb-conn-badge').textContent = b.label;
+  document.getElementById('sb-conn-title').innerHTML = `<strong>${b.label}</strong> &middot; <span class="muted">${b.models}</span>`;
+  document.getElementById('sb-conn-img-area').innerHTML = `<img id="sb-conn-img" src="${b.img}" onclick="zoomSBConnImg()" alt="SB UART testpads">`;
+  document.getElementById('sb-conn-img-wrap').style.display = '';
+}
+
+function zoomSBConnImg() {
+  const img = document.getElementById('sb-conn-img');
+  if (img) img.classList.toggle('zoomed');
+}
+
 /* ════════════════════════════════════════════════════════════
    ERROR CODES (expanded DB + filter + wiki link)
    ════════════════════════════════════════════════════════════ */
@@ -4845,40 +6264,18 @@ const UV_TABLE = [
   {v:1.5875,h:'0B'},{v:1.6000,h:'2A'}
 ];
 
-function uvSwitchMode(mode) {
-  document.getElementById('uv-auto').style.display   = mode === 'auto'   ? '' : 'none';
-  document.getElementById('uv-manual').style.display = mode === 'manual' ? '' : 'none';
-  document.getElementById('uv-btn-auto').classList.toggle('on',   mode === 'auto');
-  document.getElementById('uv-btn-manual').classList.toggle('on', mode === 'manual');
-}
-
-function uvSliderUpdate(chip) {
-  const idx  = parseInt(document.getElementById('uv-' + chip + '-slider').value);
-  const entry = UV_TABLE[idx];
-  document.getElementById('uv-' + chip + '-display').textContent =
-    entry.v.toFixed(4) + 'V (0x' + entry.h + ')';
-}
-
-function doUndervolt(chip) {
-  const nm      = document.querySelector('input[name="uv-' + chip + '-nm"]:checked').value;
-  const reverse = document.getElementById('uv-reverse').checked;
-  const mode    = reverse ? 'stock' : 'undervolt';
-  const label   = chip.toUpperCase() + ' ' + nm + ' ' + (reverse ? 'Restore Stock' : 'Undervolt');
-  const warn    = reverse
-    ? 'Restore ' + chip.toUpperCase() + ' ' + nm + ' to stock voltage?'
-    : 'Apply ' + chip.toUpperCase() + ' ' + nm + ' undervolt?\n\nWARNING: Can cause instability. Test thoroughly!';
-  if (!confirm(warn)) return;
-  api() && api().undervolt_apply(port(), sc(), chip, nm, mode);
-}
-
-function doUndervoltManual(chip) {
-  const idx   = parseInt(document.getElementById('uv-' + chip + '-slider').value);
-  const entry = UV_TABLE[idx];
-  if (!confirm('Apply ' + chip.toUpperCase() + ' voltage ' + entry.v.toFixed(4) + 'V (0x' + entry.h + ')?\n\nWARNING: Can cause instability. Test thoroughly!')) return;
-  api() && api().undervolt_manual(port(), sc(), chip, entry.h);
-}
-
 function onUndervoltDone(ok, msg) {
+  if (state.currentWf === 'undervolt') {
+    if (ok) {
+      state.uvStep = 4; // → checksum step
+      renderUVStep();
+    } else {
+      state.uvStep = 2; // → back to confirm, mark apply as error
+      renderUVStep();
+      const stepEl = document.querySelectorAll('#uv-stepper .step')[3]; // apply = index 3
+      if (stepEl) stepEl.classList.add('error');
+    }
+  }
   toast(msg, ok ? 'ok' : 'err');
 }
 
@@ -4906,6 +6303,16 @@ const BOOT_LINES = [
   { t: 6600, txt: '> ESTABLISHING BACKEND BRIDGE',          st: '' },
   { t: 7200, txt: '  PYTHON BRIDGE ................. <warn>[ WAIT ]</warn>', st: 'bridge' },
 ];
+
+/* ── Engineering Preview Splash auto-dismiss ── */
+(function() {
+  const SPLASH_SHOW = 3400; // ms visible before fade
+  const sp = document.getElementById('splash-screen');
+  setTimeout(() => {
+    sp.classList.add('fade-out');
+    setTimeout(() => sp.classList.add('hidden'), 950);
+  }, SPLASH_SHOW);
+})();
 
 let _bootDone = false;
 

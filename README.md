@@ -1,6 +1,6 @@
 # NostaDiag V2.0
 
-> A modern diagnostic and repair tool for PS3 Syscon operations built by NostaMods.
+> A modern diagnostic and repair tool for PS3 Syscon operations — built by NostaMods.
 
 [![License](https://img.shields.io/badge/license-NostaDiag%20v1.0-blue.svg)](LICENSE.txt)
 [![Version](https://img.shields.io/badge/version-Engineering%20Preview-orange.svg)]()
@@ -15,10 +15,10 @@
 
 ## Overview
 
-NostaDiagV2 is a standalone Windows GUI for PS3 Syscon work via UART serial.
+NostaDiag is a standalone Windows GUI for PS3 Syscon work via UART serial.
 No Python required. No terminal commands. No guessing — just a clean interface that covers everything from a quick health check to full fan curve editing and chip undervolting.
 
-V2 is a complete rewrite. The old tkinter interface was functional but rigid — fixed layouts, no real responsiveness, limited to what the widget library could do. I build V2 with the help from Claude so it runs in a modern web engine, which means a proper visual design, real interactivity, and an experience that actually matches the complexity of the work you're doing with all the Help you need.
+V2 is a complete rewrite. The old tkinter interface was functional but rigid — fixed layouts, no real responsiveness, limited to what the widget library could do. V2 runs in a modern web engine, which means a proper visual design, real interactivity, and an experience that actually matches the complexity of the work you're doing.
 
 **Requires:** A UART-TTL adapter (CP2102, CH340, FT232, etc.) connected to the PS3 Syscon testpads.
 
@@ -92,6 +92,18 @@ For detailed setup including hardware wiring, driver installation, and first-lau
 4. Use **Sandbox Mode** to explore the interface without connected hardware
 
 > Use the built-in Connection Guide to find the correct testpads for your PS3 model.
+
+---
+
+## SC Type — Which one do I pick?
+
+| SC Type | Console | Fan Control |
+|---------|---------|-------------|
+| CXR | FAT — older Syscon (COK-001) | No |
+| CXRF | FAT — Mullion Syscon | Yes |
+| SW | Slim / Super Slim | No |
+
+Fan curve editing is only available in **CXRF** mode.
 
 ---
 
