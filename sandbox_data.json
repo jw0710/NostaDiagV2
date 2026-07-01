@@ -45,6 +45,8 @@
   "fantbl getini 1 p7": "00000000 Tzone:68.0(0x4400) - Tmin:72.0(0x4800) duty:255(0xff)",
   "fantbl getini 1 p8": "00000000 Tzone:72.0(0x4800) - Tmin:75.0(0x4B00) duty:255(0xff)",
   "fantbl getini 1 p9": "00000000 Tzone:75.0(0x4B00) - Tmin:80.0(0x5000) duty:255(0xff)",
+  "fantbl getini 0": "00000000 P0: TempD:0.0(0x0000) - TempU:46.0(0x2e00) duty:30%(0x4d)\nP1: TempD:46.0(0x2e00) - TempU:55.0(0x3700) duty:30%(0x4d)\nP2: TempD:53.0(0x3500) - TempU:61.0(0x3d00) duty:30%(0x4d)\nP3: TempD:61.0(0x3d00) - TempU:65.0(0x4100) duty:35%(0x59)\nP4: TempD:63.0(0x3f00) - TempU:67.0(0x4300) duty:40%(0x66)\nP5: TempD:65.0(0x4100) - TempU:69.0(0x4500) duty:50%(0x80)\nP6: TempD:67.0(0x4300) - TempU:70.0(0x4600) duty:60%(0x99)\nP7: TempD:69.0(0x4500) - TempU:72.0(0x4800) duty:68%(0xad)\nP8: TempD:75.0(0x4b00) - TempU:80.0(0x5000) duty:100%(0xff)\nP9: TempD:73.0(0x4900) - TempU:85.0(0x5500) duty:100%(0xff)",
+  "fantbl getini 1": "00000000 P0: TempD:0.0(0x0000) - TempU:40.0(0x2800) duty:30%(0x4d)\nP1: TempD:40.0(0x2800) - TempU:50.0(0x3200) duty:35%(0x59)\nP2: TempD:50.0(0x3200) - TempU:55.0(0x3700) duty:40%(0x66)\nP3: TempD:54.0(0x3600) - TempU:58.0(0x3a00) duty:46%(0x75)\nP4: TempD:56.0(0x3800) - TempU:61.0(0x3d00) duty:50%(0x80)\nP5: TempD:60.0(0x3c00) - TempU:65.0(0x4100) duty:60%(0x99)\nP6: TempD:63.0(0x3f00) - TempU:69.0(0x4500) duty:82%(0xd0)\nP7: TempD:68.0(0x4400) - TempU:72.0(0x4800) duty:100%(0xff)\nP8: TempD:72.0(0x4800) - TempU:75.0(0x4b00) duty:100%(0xff)\nP9: TempD:75.0(0x4b00) - TempU:80.0(0x5000) duty:100%(0xff)",
   "w 3292 FF": "00000000",
   "w 3292 00": "00000000",
   "w 50": "00000000",

@@ -2,6 +2,32 @@
 
 ---
 
+## V2.0.2 — 01.07.2026
+
+**Fixed**
+- **Fan table read/write** — corrected to the real Syscon console format (verified
+  against the v1 tool). Reading now issues one `fantbl getini {chip}` call per chip
+  and parses all 10 phases from `P{n}: TempD:… TempU:… duty:{percent}%`, converting
+  duty percent to a 0–255 value. Writing uses `fantbl setini {chip} p{n} {tmin}.00
+  {tmax}.00 0x{duty}` and sets thermal shutdown per chip (`tshutdown setini {chip}
+  {value}`). The previous parsing did not match the hardware and returned no data.
+- **Standalone .exe crashed silently on startup** — in a `--windowed` PyInstaller
+  build `sys.stderr` is `None`; the stderr filter now guards against that instead
+  of crashing on the first stderr write. The exe now starts (and starts faster).
+
+**Added**
+- **Animated DNA double-helix background** (dark mode) — pure CSS/JS, with an
+  on/off switch in Settings and automatic pause when the window is hidden.
+- **`build_debug.bat`** — console-visible, no-UPX build for diagnosing startup issues.
+
+**Changed**
+- **Faster, offline-proof startup** — UI fonts (Inter, JetBrains Mono) are now
+  self-hosted in `assets/fonts/` instead of loaded from a CDN, removing a
+  multi-second stall when offline; the splash overlay time was trimmed.
+- Cards are slightly translucent in dark mode so the helix background shows through.
+
+---
+
 ## V2.0.1 — 27.05.2026
 
 - **CXR mode gate** — in CXR mode only CXR→CXRF Patch and Direct Commands are accessible; all other workflows are locked with tooltip "Requires CXRF mode"

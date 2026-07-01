@@ -1,0 +1,10 @@
+# NostaDiag runtime dependencies
+# Install with:  pip install -r requirements.txt
+# Then run:      python app_web.py
+
+pywebview>=5.0
+pyserial>=3.5
+pycryptodome>=3.20
+
+# Build-only (not needed to run from source):
+#   pyinstaller>=6.0    -> see build.bat / build_debug.bat

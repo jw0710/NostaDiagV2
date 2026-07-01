@@ -15,15 +15,22 @@ class _StderrFilter:
     def __init__(self, real):
         self.real = real
     def write(self, s):
-        if not s:
+        # In a --windowed PyInstaller build sys.stderr is None; swallow writes
+        # instead of crashing on None.write (this bug only bites the exe, not
+        # the script, because the script always has a real stderr).
+        if not s or self.real is None:
             return
         if 'Empty.Empty.Empty' in s or 'AccessibilityObject' in s or 'maximum recursion depth' in s:
             return
         self.real.write(s)
     def flush(self):
-        try: self.real.flush()
+        try:
+            if self.real is not None:
+                self.real.flush()
         except Exception: pass
     def __getattr__(self, name):
+        if self.real is None:
+            raise AttributeError(name)
         return getattr(self.real, name)
 
 sys.stderr = _StderrFilter(sys.stderr)
@@ -773,38 +780,45 @@ class Api:
     # ── Per-chip fan tables (CELL / RSX, 5 phases each) ──────────────────────
 
     def fan_read_full(self, port, sc_type):
-        """Read CELL + RSX fan tables (5 phases each) plus thermal shutdown."""
+        """Read CELL + RSX fan tables (10 phases each) plus thermal shutdown."""
         def _run():
             try:
-                self._log('Reading fan tables (CELL + RSX, 5 phases each)…', 'cmd')
+                self._log('Reading fan tables (CELL + RSX, 10 phases each)…', 'cmd')
                 ps3 = self._ps3(port, sc_type)
                 data = {'cell': [], 'rsx': [], 'tshutdown': 85}
 
+                # One call per chip — the Syscon returns all 10 phases at once.
+                # Real console format (per the proven v1 tool), one line per phase:
+                #   P0: TempD:0.0(0x0000) - TempU:46.0(0x2e00) duty:30%(0x4d)
+                # Mapping: TempD -> tmin, TempU -> tmax, duty(percent) -> speed(0-255)
+                phase_re = re.compile(
+                    r'P(\d+):\s+TempD:([0-9.]+).*?TempU:([0-9.]+).*?duty:(\d+)%',
+                    re.IGNORECASE
+                )
                 for table_idx, key in enumerate(['cell', 'rsx']):
                     label = key.upper()
-                    for p in range(10):
-                        cmd = 'fantbl getini {} p{}'.format(table_idx, p)
-                        self._log('  ' + cmd, 'dim')
-                        ret = ps3.command(cmd, wait=0.4)
-                        phase = {'tmin': 0, 'tmax': 0, 'speed': 0}
-                        if ret[0] == 0xFFFFFFFF:
-                            self._log('  ' + label + ' p{} read failed'.format(p), 'err')
-                        else:
-                            out = ps3.fmt(ret)
-                            # Pull the last 3 integer tokens as TMin / TMax / Speed
-                            nums = []
-                            for tok in out.replace(',', ' ').split():
-                                tok = tok.strip()
-                                if tok.startswith('0x') or tok.startswith('0X'):
-                                    try: nums.append(int(tok, 16)); continue
-                                    except ValueError: pass
-                                try: nums.append(int(tok))
-                                except ValueError: continue
-                            # filter out the 8-digit return-code echo (typically 0)
-                            usable = [n for n in nums if n < 0x100]
-                            if len(usable) >= 3:
-                                phase = {'tmin': usable[-3], 'tmax': usable[-2], 'speed': usable[-1]}
-                        data[key].append(phase)
+                    cmd = 'fantbl getini {}'.format(table_idx)
+                    self._log('  ' + cmd, 'dim')
+                    ret = ps3.command(cmd, wait=1)
+                    if ret[0] == 0xFFFFFFFF:
+                        self._log('  ' + label + ' read failed: {}'.format(
+                            ret[1][0] if ret[1] else 'unknown'), 'err')
+                        continue
+                    out = ps3.fmt(ret)
+                    phases = {}
+                    for m in phase_re.finditer(out):
+                        pn = int(m.group(1))
+                        if pn >= 10:
+                            continue
+                        phases[pn] = {
+                            'tmin':  int(float(m.group(2))),           # TempD
+                            'tmax':  int(float(m.group(3))),           # TempU
+                            'speed': int(int(m.group(4)) * 255 / 100), # duty% -> 0-255
+                        }
+                    if not phases:
+                        self._log('  ' + label + ' — could not parse any phase from response', 'err')
+                    for pn in sorted(phases):
+                        data[key].append(phases[pn])
 
                 # Thermal shutdown — single value
                 try:
@@ -832,7 +846,7 @@ class Api:
         return {'ok': True}
 
     def fan_write_full(self, port, sc_type, cell, rsx, tshutdown):
-        """Write both CELL + RSX tables (5 phases each) and thermal shutdown."""
+        """Write both CELL + RSX tables (10 phases each) and thermal shutdown."""
         def _run():
             try:
                 self._log('Writing fan tables…', 'cmd')
@@ -840,11 +854,13 @@ class Api:
                 for table_idx, (label, phases) in enumerate([('CELL', cell), ('RSX', rsx)]):
                     self._log('--- {} table ---'.format(label), 'dim')
                     for p, ph in enumerate(phases):
-                        cmd = 'fantbl setini {} p{} {} {} {}'.format(
+                        # Syscon expects temps as floats (e.g. 67.00) and the
+                        # duty/speed as a hex byte (e.g. 0x28), not plain ints.
+                        cmd = 'fantbl setini {} p{} {:.2f} {:.2f} 0x{:02x}'.format(
                             table_idx, p,
-                            int(ph.get('tmin', 0)),
-                            int(ph.get('tmax', 0)),
-                            int(ph.get('speed', 0)),
+                            float(ph.get('tmin', 0)),
+                            float(ph.get('tmax', 0)),
+                            int(ph.get('speed', 0)) & 0xFF,
                         )
                         self._log('  ' + cmd, 'dim')
                         ret = ps3.command(cmd, wait=0.3)
@@ -852,10 +868,11 @@ class Api:
                             self._log('Write failed at {} p{}: {}'.format(label, p, ret[1]), 'err')
                             self._js('onFanWriteDone(false)')
                             return
-                if tshutdown:
-                    ts_cmd = 'tshutdown setini {}'.format(int(tshutdown))
-                    self._log('  ' + ts_cmd, 'dim')
-                    ps3.command(ts_cmd, wait=0.3)
+                    # Thermal shutdown is set per chip: tshutdown setini {cpu_id} {value}
+                    if tshutdown:
+                        ts_cmd = 'tshutdown setini {} {}'.format(table_idx, int(tshutdown))
+                        self._log('  ' + ts_cmd, 'dim')
+                        ps3.command(ts_cmd, wait=0.3)
 
                 self._log('Fan tables written successfully.', 'ok')
                 self._js('onFanWriteDone(true)')

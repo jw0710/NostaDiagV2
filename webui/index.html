@@ -17,15 +17,23 @@
     }
   } catch(e) {}
 })();</script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- UI fonts are self-hosted (see @font-face rules below) — no CDN, no network
+     dependency at startup. -->
+
 <style>
 @font-face {
   font-family: 'SpaceAge';
   src: url('../assets/space_age.ttf') format('truetype');
   font-display: swap;
 }
+/* Self-hosted UI fonts (latin subset) — no CDN, works fully offline */
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('../assets/fonts/Inter-400.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('../assets/fonts/Inter-500.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('../assets/fonts/Inter-600.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: swap; src: url('../assets/fonts/Inter-700.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('../assets/fonts/JetBrainsMono-400.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('../assets/fonts/JetBrainsMono-500.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 600; font-display: swap; src: url('../assets/fonts/JetBrainsMono-600.woff2') format('woff2'); }
 /* ============================================================
    DESIGN TOKENS
    ============================================================ */
@@ -2297,6 +2305,111 @@ body.cozy   .card-b  { padding: 16px 20px; }
   background: #fff;
 }
 
+/* ============================================================
+   DNA DOUBLE-HELIX BACKGROUND  (ported from NostaTheme, CSS-only 3D)
+   Strand A green #3dffa8, strand B ice-blue #57b9ff, rungs cycle
+   green/blue/pale. A rotor spins around Y; dense screen-blend nodes
+   fake the additive bloom so each strand reads as a glowing ribbon.
+   ============================================================ */
+#workspace { z-index: 0; }          /* stacking context: helix sits above
+                                       the workspace bg, below its content */
+.dna { position: absolute; pointer-events: none; }
+.dna--app {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(72%, 620px);
+  height: 100%;
+  opacity: 0.72;
+  z-index: -1;
+}
+.dna3d {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  perspective: 1100px;
+  --radius: 110px;   /* helix radius        */
+  --node: 14px;      /* backbone node size  */
+  --rod-h: 3px;      /* base-pair thickness */
+  --spin: 18s;       /* one full turn       */
+}
+.dna3d__tilt {
+  position: relative;
+  width: 1px;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform: rotateZ(9deg) rotateX(6deg);
+}
+.dna3d__rotor {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-style: preserve-3d;
+  animation: dna-spin var(--spin) linear infinite;
+  will-change: transform;
+}
+@keyframes dna-spin {
+  from { transform: rotateY(0deg); }
+  to   { transform: rotateY(360deg); }
+}
+.dna3d__pair {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-style: preserve-3d;
+  transform: translateY(var(--y)) rotateY(var(--a));
+}
+.dna3d__rod {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--radius) * 2);
+  height: var(--rod-h);
+  margin-top: calc(var(--rod-h) / -2);
+  margin-left: calc(var(--radius) * -1);
+  border-radius: var(--rod-h);
+  background: var(--rc, #cfe3f2);
+  box-shadow: 0 0 7px var(--rc, #cfe3f2);
+  opacity: 0.45;
+  mix-blend-mode: screen;
+}
+.dna3d__node {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--node);
+  height: var(--node);
+  margin: calc(var(--node) / -2);
+  border-radius: 50%;
+  mix-blend-mode: screen;
+}
+.dna3d__node--a {
+  transform: translateX(calc(var(--radius) * -1));
+  background: radial-gradient(circle at 50% 50%, #ffffff, rgb(61, 255, 168) 50%, rgba(61, 255, 168, 0) 82%);
+  box-shadow: 0 0 11px rgba(61, 255, 168, 0.85), 0 0 26px rgba(61, 255, 168, 0.45);
+}
+.dna3d__node--b {
+  transform: translateX(var(--radius));
+  background: radial-gradient(circle at 50% 50%, #ffffff, rgb(87, 185, 255) 50%, rgba(87, 185, 255, 0) 82%);
+  box-shadow: 0 0 11px rgba(87, 185, 255, 0.85), 0 0 26px rgba(87, 185, 255, 0.45);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dna3d__rotor { animation: none; transform: rotateY(28deg); }
+}
+/* Helix on/off (Settings) — display:none removes it from the render tree */
+body.helix-off .dna { display: none; }
+/* Pause the spin whenever the window is hidden/minimised (set from JS) */
+body.dna-paused .dna3d__rotor { animation-play-state: paused; }
+/* Dark mode only: frost the cards so the helix glows through while text
+   stays readable. Light mode keeps solid panels (no helix behind them). */
+body:not(.theme-light) .card {
+  background: rgba(24, 26, 30, 0.72);          /* --bg-2 #181a1e @ 72% — helix glows through, no blur (cheap) */
+}
+body:not(.theme-light) .card-h {
+  background: rgba(24, 26, 30, 0.55);
+}
+
 </style>
 </head>
 <body class="theme-light"><script>
@@ -2390,6 +2503,42 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
 
     <!-- ── WORKSPACE ── -->
     <section id="workspace">
+      <!-- DNA double-helix background (ported from NostaTheme). Base-pairs are
+           generated below so the markup stays compact. -->
+      <div class="dna dna--app" aria-hidden="true">
+        <div class="dna3d">
+          <div class="dna3d__tilt">
+            <div class="dna3d__rotor" id="dna-rotor"></div>
+          </div>
+        </div>
+      </div>
+      <script>(function(){
+        var rotor = document.getElementById('dna-rotor');
+        if (!rotor) return;
+        var MAXN = 56, twist = 13, palette = ['#3dffa8', '#57b9ff', '#cfe3f2'];
+        function build() {
+          var ws = document.getElementById('workspace');
+          var h = (ws && ws.clientHeight) || window.innerHeight || 800;
+          // Bound the element count for stability: fill height by stretching the
+          // pitch (gap), not by adding ever more glowing nodes.
+          var gap = Math.max(9, Math.ceil(h / MAXN));
+          var n = Math.min(MAXN, Math.ceil(h / gap) + 2);
+          var half = (n - 1) * gap / 2, html = '';
+          for (var i = 0; i < n; i++) {
+            var y = (i * gap - half), a = i * twist, hue = i * 9, rc = palette[i % 3];
+            html += '<div class="dna3d__pair" style="--y:' + y + 'px;--a:' + a + 'deg;--hue:' + hue + ';--rc:' + rc + ';">'
+                  + '<span class="dna3d__rod"></span>'
+                  + '<span class="dna3d__node dna3d__node--a"></span>'
+                  + '<span class="dna3d__node dna3d__node--b"></span>'
+                  + '</div>';
+          }
+          rotor.innerHTML = html;
+        }
+        build();
+        window.addEventListener('DOMContentLoaded', build);   // remeasure once layout is final
+        var _t; window.addEventListener('resize', function(){ clearTimeout(_t); _t = setTimeout(build, 200); });
+      })();</script>
+
       <div class="ws-head">
         <div>
           <div class="ws-title" id="ws-title">Connect &amp; Authenticate</div>
@@ -3099,6 +3248,14 @@ if (document.documentElement.getAttribute('data-preload-dark') === '1') {
                   <input type="checkbox" id="set-sb-kbd" checked onchange="applySbKbd(this.checked)">
                   <span class="tk"></span>
                   <span class="tlbl">Show F-Keys in Sidebar (F1-F12)</span>
+                </label>
+              </div>
+
+              <div class="row" style="gap:24px">
+                <label class="toggle">
+                  <input type="checkbox" id="set-helix" checked onchange="applyHelix(this.checked)">
+                  <span class="tk"></span>
+                  <span class="tlbl">Animated DNA helix background (dark mode)</span>
                 </label>
               </div>
 
@@ -5945,6 +6102,7 @@ const settings = {
   autoauth:   true,
   guide_seen: false,
   showSbKbd: true,
+  helix:      true,
 };
 
 function _applySettings() {
@@ -5953,6 +6111,7 @@ function _applySettings() {
   applyFont(settings.font, true);
   applyDensity(settings.density, true);
   applySbKbd(settings.showSbKbd !== false, true);
+  applyHelix(settings.helix !== false, true);
 }
 
 function loadSettings() {
@@ -6056,6 +6215,21 @@ function applySbKbd(show, silent) {
   if (!silent) saveSettings();
 }
 
+function applyHelix(on, silent) {
+  settings.helix = !!on;
+  // helix-off fully removes it from the render tree (display:none stops the animation)
+  document.body.classList.toggle('helix-off', !on);
+  const cb = document.getElementById('set-helix');
+  if (cb) cb.checked = !!on;
+  if (!silent) saveSettings();
+}
+
+// Pause the helix animation whenever the window is hidden/minimised so it costs
+// nothing in the background. Wired once at load.
+document.addEventListener('visibilitychange', function () {
+  document.body.classList.toggle('dna-paused', document.hidden);
+});
+
 function refreshSettingsView() {
   const sw = document.getElementById('theme-swatches');
   if (sw && !sw.children.length) {
@@ -6076,6 +6250,8 @@ function refreshSettingsView() {
   document.getElementById('sb-sw').checked        = settings.sandbox;
   const sbKbd = document.getElementById('set-sb-kbd');
   if (sbKbd) sbKbd.checked = settings.showSbKbd !== false;
+  const helixCb = document.getElementById('set-helix');
+  if (helixCb) helixCb.checked = settings.helix !== false;
   const sl = document.getElementById('set-light');
   const tl = document.getElementById('theme-sw');
   if (sl) sl.checked = !settings.lightMode;  // checked = dark mode active
@@ -6084,7 +6260,7 @@ function refreshSettingsView() {
 
 function resetSettings() {
   if (!confirm('Reset all UI settings to defaults?')) return;
-  Object.assign(settings, { theme:'blue', accent:'#2c8fff', font:'default', density:'normal', lightMode:false, sandbox:false, livemon:false, autoauth:true, guide_seen:false, showSbKbd:true });
+  Object.assign(settings, { theme:'blue', accent:'#2c8fff', font:'default', density:'normal', lightMode:false, sandbox:false, livemon:false, autoauth:true, guide_seen:false, showSbKbd:true, helix:true });
   _applySettings();
   refreshSettingsView();
   saveSettings();
@@ -6306,7 +6482,7 @@ const BOOT_LINES = [
 
 /* ── Engineering Preview Splash auto-dismiss ── */
 (function() {
-  const SPLASH_SHOW = 3400; // ms visible before fade
+  const SPLASH_SHOW = 900; // ms visible before fade
   const sp = document.getElementById('splash-screen');
   setTimeout(() => {
     sp.classList.add('fade-out');
