@@ -122,7 +122,6 @@ Fan curve editing is only available in **CXRF** mode.
 Built on community reverse engineering work:
 
 - **M4j0r** — foundational work on PS3 Syscon internals, UART protocol, and diagnostic commands
-- **Sage** — reverse-engineered authentication methods and Syscon security mechanisms
 - **DoublesAdvocat** — research and documentation of safe voltage ranges per chip revision
 - **Calyps0man** — UI feedback, visual design input, testing, and research contributions to the Frankenstein mod
 - PSX-Place community — Frankenstein mod documentation and RSX swap research
